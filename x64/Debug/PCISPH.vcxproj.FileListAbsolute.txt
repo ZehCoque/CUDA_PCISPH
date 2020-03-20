@@ -1,0 +1,2 @@
+C:\Users\josec\Desktop\PCISPH\x64\Debug\PCISPH.exe
+C:\Users\josec\Desktop\PCISPH\x64\Debug\PCISPH.pdb
