@@ -83,8 +83,8 @@ int main(void)
     int size_vectorData = sizeof(vectorData)/sizeof(double);
     // std::cout << sizeof(vectorData) << std::endl;
     // std::cout << typeid(vectorData).name() << std::endl;
-    std::string pointDataNames[] = {"density","density"};
-    std::string vectorDataNames[] = {"velocity"};
+    std::string pointDataNames[] = {"density","density2","density3"};
+    std::string vectorDataNames[] = {"velocity","velocity2"};
 
     VTK_Writer(POSITIONS,N,pointData,vectorData,pointDataNames,vectorDataNames,size_pointData,size_vectorData);
 

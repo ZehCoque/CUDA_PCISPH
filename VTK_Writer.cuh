@@ -4,7 +4,7 @@
 #include "indent_facet.hpp"
 
 int VTK_Writer(vec3d* points,int numberOfPoints, float** pointData[],vec3d** vectorData[], std::string pointDataNames[], std::string vectorDataNames[], int size_pointData, int size_vectorData) {
-  std::cout << size_vectorData;
+  std::cout << size_pointData;
   std::ofstream vtu_file;
   vtu_file.open ("iter1.vtu");
   //for (int i = 0;i < points.size(); i++)
