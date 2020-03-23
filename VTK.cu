@@ -3,11 +3,17 @@
 #include <fstream>
 #include <string>
 
-int VTU_Writer(std::string path,int iteration,vec3d* points,int numberOfPoints, float** pointData[],vec3d** vectorData[], std::string pointDataNames[], std::string vectorDataNames[], int size_pointData, int size_vectorData) 
+char* VTU_Writer(char path[],int iteration,vec3d* points,int numberOfPoints, float** pointData[],vec3d** vectorData[], std::string pointDataNames[], std::string vectorDataNames[], int size_pointData, int size_vectorData,char* fullpath) 
 {
-  path = path + "iter" + std::to_string(iteration) + ".vtu";
+  char buffer [33];
+  itoa (iteration,buffer,10);
+  strcpy(fullpath, path);
+  strcat(fullpath, "/iter");
+  strcat(fullpath, buffer);
+  strcat(fullpath, ".vtu");
+
   std::ofstream vtu_file;
-  vtu_file.open (path);
+  vtu_file.open (fullpath);
   //for (int i = 0;i < points.size(); i++)
   vtu_file << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"BigEndian\">\n"
            << "<UnstructuredGrid>\n" 
@@ -74,5 +80,27 @@ int VTU_Writer(std::string path,int iteration,vec3d* points,int numberOfPoints, 
            << "</UnstructuredGrid>\n" 
            << "</VTKFile>";
   vtu_file.close();
-  return 0;
+  return fullpath;
 }
+
+void VTK_Group(char vtk_group_path[],char vtu_path[],float time){
+  if (dirExists(vtk_group_path) == 1){
+    std::ofstream vtk_group;
+    vtk_group.open (vtk_group_path);
+    long pos = vtk_group.tellp(); // gets the current position of the buffer
+    std::cout << "hi " << pos << std::endl;
+    vtk_group.seekp(pos - 1);
+    vtk_group.close();
+  } else {
+    std::ofstream vtk_group;
+    vtk_group.open (vtk_group_path);
+    vtk_group << "<VTKFile type=\"Collection\" version=\"0.1\" byte_order=\"LittleEndian\">\n"
+              << "<Collection>\n"
+              << "<DataSet timestep=\"" << time << "\" group=\"\" part=\"0\" file=\"" << vtu_path << "\"/>\n"
+              << "</Collection>\n"
+              << "</VTKFile>";
+  }
+
+  return;
+}
+

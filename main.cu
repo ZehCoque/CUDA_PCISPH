@@ -9,10 +9,10 @@
 #include "device_functions.cuh"
 #include "kernel_functions.cuh"
 #include <stdio.h>
-#include "VTK.cu"
 #include "utilities.cu"
+#include "VTK.cu"
 
-//Initial conditions
+// Initial conditions
 const float PARTICLE_RADIUS = 1/10.f;
 const float mass = M_PI * pow(PARTICLE_RADIUS,3)/3*4;
 const float PARTICLE_DIAMETER = 2 * PARTICLE_RADIUS;
@@ -23,13 +23,32 @@ float VOLUME = 1;
 const int SIMULATION_DIMENSION = 3;
 const int x = 40; // Number of particles inside the smoothing length
 
-int iteration = 0;
+int iteration = 1;
 float simulation_time = 0;
 
-//Value for PI -> M_PI
+// Value for PI -> M_PI
+
+// Algorithm variables
+// int vtu_no_of_lines = 0;
 
 int main(void)
 {
+    // get main path of simulation
+    char main_path[1024];
+    getMainPath(main_path);
+
+    // write path for vtu files
+    char vtu_path[1024];
+    strcpy(vtu_path,main_path);
+    strcat(vtu_path,"/vtu");
+
+    // write path for vtk group file
+    char vtk_group_path[1024];
+    strcpy(vtk_group_path,main_path);
+    strcat(vtk_group_path,"/PCISPH.pvd");
+
+    // create directory for vtu files
+    CreateDir(vtu_path);
     // Get number per dimension (NPD) of particles
     for (int i = 0; i < 3; i++) {
         NPD[i] = ceil((FINAL_POSITION[i] - STARTING_POSITION[i]) / PARTICLE_DIAMETER);
@@ -78,20 +97,17 @@ int main(void)
         velocity[i].z = i;
     }
 
-    float** pointData[] = {&density,&density,&density};
+    float** pointData[] = {&density};
     int size_pointData = sizeof(pointData)/sizeof(double);
-    vec3d** vectorData[] = {&velocity,&velocity};
+    vec3d** vectorData[] = {&velocity};
     int size_vectorData = sizeof(vectorData)/sizeof(double);
     // std::cout << sizeof(vectorData) << std::endl;
     // std::cout << typeid(vectorData).name() << std::endl;
-    std::string pointDataNames[] = {"density","density2","density3"};
-    std::string vectorDataNames[] = {"velocity","velocity2"};
+    std::string pointDataNames[] = {"density"};
+    std::string vectorDataNames[] = {"velocity"};
 
-    char vtu_path[] = "results";
-
-    CreateDir(vtu_path);
-
-    VTU_Writer(vtu_path,iteration,POSITIONS,N,pointData,vectorData,pointDataNames,vectorDataNames,size_pointData,size_vectorData);
+    char vtu_fullpath[1024];
+    strcpy(vtu_fullpath,VTU_Writer(vtu_path,iteration,POSITIONS,N,pointData,vectorData,pointDataNames,vectorDataNames,size_pointData,size_vectorData,vtu_fullpath));
 
     // Free memory
     cudaFree(POSITIONS);
