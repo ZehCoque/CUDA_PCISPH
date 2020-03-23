@@ -1,0 +1,7 @@
+main.exe
+main.exp
+main.lib
+x64/
+Debug/
+PCISPH.sln
+PCISPH.vcxproj

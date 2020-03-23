@@ -1,12 +1,13 @@
 // basic file operations
 #include <iostream>
 #include <fstream>
-#include "indent_facet.hpp"
+#include <string>
 
-int VTK_Writer(vec3d* points,int numberOfPoints, float** pointData[],vec3d** vectorData[], std::string pointDataNames[], std::string vectorDataNames[], int size_pointData, int size_vectorData) {
-  std::cout << size_pointData;
+int VTU_Writer(std::string path,int iteration,vec3d* points,int numberOfPoints, float** pointData[],vec3d** vectorData[], std::string pointDataNames[], std::string vectorDataNames[], int size_pointData, int size_vectorData) 
+{
+  path = path + "iter" + std::to_string(iteration) + ".vtu";
   std::ofstream vtu_file;
-  vtu_file.open ("iter1.vtu");
+  vtu_file.open (path);
   //for (int i = 0;i < points.size(); i++)
   vtu_file << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"BigEndian\">\n"
            << "<UnstructuredGrid>\n" 
