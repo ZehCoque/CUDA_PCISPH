@@ -1,7 +1,7 @@
 #define _USE_MATH_DEFINES
 
 #include <iostream>
-#include <vector>
+#include <string.h>
 #include <math.h>
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
@@ -9,10 +9,11 @@
 #include "device_functions.cuh"
 #include "kernel_functions.cuh"
 #include <stdio.h>
-#include "VTK_Writer.cuh"
+#include "VTK.cu"
+#include "utilities.cu"
 
 //Initial conditions
-const float PARTICLE_RADIUS = 0.01;
+const float PARTICLE_RADIUS = 1/10.f;
 const float mass = M_PI * pow(PARTICLE_RADIUS,3)/3*4;
 const float PARTICLE_DIAMETER = 2 * PARTICLE_RADIUS;
 const float STARTING_POSITION[3] = { 0,0,0 };
@@ -83,10 +84,14 @@ int main(void)
     int size_vectorData = sizeof(vectorData)/sizeof(double);
     // std::cout << sizeof(vectorData) << std::endl;
     // std::cout << typeid(vectorData).name() << std::endl;
-    std::string pointDataNames[] = {"density","density"};
-    std::string vectorDataNames[] = {"velocity"};
+    std::string pointDataNames[] = {"density","density2","density3"};
+    std::string vectorDataNames[] = {"velocity","velocity2"};
 
-    VTK_Writer(POSITIONS,N,pointData,vectorData,pointDataNames,vectorDataNames,size_pointData,size_vectorData);
+    char vtu_path[] = "results";
+
+    CreateDir(vtu_path);
+
+    VTU_Writer(vtu_path,iteration,POSITIONS,N,pointData,vectorData,pointDataNames,vectorDataNames,size_pointData,size_vectorData);
 
     // Free memory
     cudaFree(POSITIONS);
