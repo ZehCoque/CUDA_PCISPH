@@ -6,14 +6,14 @@
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include <algorithm>
-#include "device_functions.cuh"
-#include "kernel_functions.cuh"
+#include "device_functions.cu"
+#include "kernel_functions.cu"
 #include <stdio.h>
 #include "utilities.cu"
 #include "VTK.cu"
 
 // Initial conditions
-const float PARTICLE_RADIUS = 1/10.f;
+const float PARTICLE_RADIUS = 1/100.f;
 const float mass = M_PI * pow(PARTICLE_RADIUS,3)/3*4;
 const float PARTICLE_DIAMETER = 2 * PARTICLE_RADIUS;
 const float STARTING_POSITION[3] = { 0,0,0 };
@@ -22,6 +22,10 @@ int NPD[3];
 float VOLUME = 1;
 const int SIMULATION_DIMENSION = 3;
 const int x = 40; // Number of particles inside the smoothing length
+vec3d gravity;
+gravity.x = 0;
+gravity.y = -9.81;
+gravity.z = 0;
 
 int iteration = 1;
 float simulation_time = 0;
@@ -108,6 +112,8 @@ int main(void)
 
     char vtu_fullpath[1024];
     strcpy(vtu_fullpath,VTU_Writer(vtu_path,iteration,POSITIONS,N,pointData,vectorData,pointDataNames,vectorDataNames,size_pointData,size_vectorData,vtu_fullpath));
+
+    VTK_Group(vtk_group_path,vtu_fullpath,simulation_time);
 
     // Free memory
     cudaFree(POSITIONS);

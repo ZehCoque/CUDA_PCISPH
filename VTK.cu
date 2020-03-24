@@ -84,19 +84,24 @@ char* VTU_Writer(char path[],int iteration,vec3d* points,int numberOfPoints, flo
 }
 
 void VTK_Group(char vtk_group_path[],char vtu_path[],float time){
-  if (dirExists(vtk_group_path) == 1){
-    std::ofstream vtk_group;
+  //std::cout << vtk_group_path << std::endl;
+  char buffer[65];
+  strcpy(buffer,clearAddressArray(buffer,vtk_group_path, vtu_path));
+  
+  if (fileExists(vtk_group_path) == 0){
+    std::fstream vtk_group;
     vtk_group.open (vtk_group_path);
-    long pos = vtk_group.tellp(); // gets the current position of the buffer
-    std::cout << "hi " << pos << std::endl;
-    vtk_group.seekp(pos - 1);
+    vtk_group.seekg (-25, std::ios::end);
+    vtk_group << "<DataSet timestep=\"" << time << "\" group=\"\" part=\"0\" file=\"" << buffer << "\"/>\n"
+              << "</Collection>\n"
+              << "</VTKFile>";
     vtk_group.close();
   } else {
     std::ofstream vtk_group;
     vtk_group.open (vtk_group_path);
     vtk_group << "<VTKFile type=\"Collection\" version=\"0.1\" byte_order=\"LittleEndian\">\n"
               << "<Collection>\n"
-              << "<DataSet timestep=\"" << time << "\" group=\"\" part=\"0\" file=\"" << vtu_path << "\"/>\n"
+              << "<DataSet timestep=\"" << time << "\" group=\"\" part=\"0\" file=\"" << buffer << "\"/>\n"
               << "</Collection>\n"
               << "</VTKFile>";
   }

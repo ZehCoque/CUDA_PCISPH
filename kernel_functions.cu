@@ -1,3 +1,8 @@
+//All functions only callable from the host. 
+//The "kernel" in the title refers to how CUDA calls 
+//the functions running in the device called from the 
+//host (processor).
+
 #include <iostream>
 #include <stdio.h>
 #include <cuda_runtime.h>
