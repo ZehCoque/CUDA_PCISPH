@@ -3,14 +3,19 @@
 #include <fstream>
 #include <string>
 
-char* VTU_Writer(char path[],int iteration,vec3d* points,int numberOfPoints, float** pointData[],vec3d** vectorData[], std::string pointDataNames[], std::string vectorDataNames[], int size_pointData, int size_vectorData,char* fullpath) 
+char* VTU_Writer(char path[],int iteration,vec3d* points,int numberOfPoints, float** pointData[],vec3d** vectorData[], std::string pointDataNames[], std::string vectorDataNames[], int size_pointData, int size_vectorData,char* fullpath,int type = 0) 
 {
-  char buffer [33];
-  itoa (iteration,buffer,10);
-  strcpy(fullpath, path);
-  strcat(fullpath, "/iter");
-  strcat(fullpath, buffer);
-  strcat(fullpath, ".vtu");
+  if (type == 0) {
+      char buffer [33];
+      itoa (iteration,buffer,10);
+      strcpy(fullpath, path);
+      strcat(fullpath, "/iter");
+      strcat(fullpath, buffer);
+      strcat(fullpath, ".vtu");
+  } else if (type == 1) {
+      strcpy(fullpath, path);
+      strcat(fullpath, "/boundary.vtu");
+  }
 
   std::ofstream vtu_file;
   vtu_file.open (fullpath);

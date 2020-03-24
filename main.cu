@@ -23,9 +23,6 @@ float VOLUME = 1;
 const int SIMULATION_DIMENSION = 3;
 const int x = 40; // Number of particles inside the smoothing length
 vec3d gravity;
-gravity.x = 0;
-gravity.y = -9.81;
-gravity.z = 0;
 
 int iteration = 1;
 float simulation_time = 0;
@@ -53,15 +50,28 @@ int main(void)
 
     // create directory for vtu files
     CreateDir(vtu_path);
-    // Get number per dimension (NPD) of particles
+    // Get number per dimension (NPD) of particles for hexadecimal packing
     for (int i = 0; i < 3; i++) {
-        NPD[i] = ceil((FINAL_POSITION[i] - STARTING_POSITION[i]) / PARTICLE_DIAMETER);
-        VOLUME = VOLUME * (FINAL_POSITION[i] - STARTING_POSITION[i]);
+        if (i==1){
+            NPD[i] = floor((FINAL_POSITION[i] - STARTING_POSITION[i]) / (sqrt(3.f)/2.f*PARTICLE_DIAMETER));
+            VOLUME = VOLUME * (FINAL_POSITION[i] - STARTING_POSITION[i]);
+        } else {
+            NPD[i] = floor((FINAL_POSITION[i] - STARTING_POSITION[i]) / PARTICLE_DIAMETER);
+            VOLUME = VOLUME * (FINAL_POSITION[i] - STARTING_POSITION[i]);
+        }
     }
     
     int N = NPD[0] * NPD[1] * NPD[2];
     int SIM_SIZE = N * SIMULATION_DIMENSION;
     const float h = pow(3 * VOLUME * x/(4*M_PI*N),1/3.f);
+
+    //defining gravity vector
+    gravity.x = 0;
+    gravity.y = -9.81;
+    gravity.z = 0;
+
+    std::cout << "Initializing with " << N << " fluid particles.\n"
+              << "Smoothing radius = " << h << " m.\n";
 
     //const float boundary_radius = h/4;
     //const float boundary_diameter = h/2;
@@ -81,7 +91,7 @@ int main(void)
     dim3 grid(NPD[0], NPD[1], NPD[2]);
     
     //generate locations for each particle
-    getPositions<<<grid,block>>>(POSITIONS, PARTICLE_DIAMETER, SIMULATION_DIMENSION, SIM_SIZE);
+    makeBox<<<grid,block>>>(POSITIONS, PARTICLE_DIAMETER);
     cudaStatus = cudaGetLastError();
     if (cudaStatus != cudaSuccess) 
     {
