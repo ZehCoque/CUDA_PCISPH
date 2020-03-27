@@ -92,7 +92,7 @@ void VTK_Group(char vtk_group_path[],char vtu_path[],float time){
   //std::cout << vtk_group_path << std::endl;
   char buffer[65];
   strcpy(buffer,clearAddressArray(buffer,vtk_group_path, vtu_path));
-  
+
   if (fileExists(vtk_group_path) == 0){
     std::fstream vtk_group;
     vtk_group.open (vtk_group_path);
