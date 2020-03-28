@@ -112,14 +112,14 @@ void makeBox(vec3d* position_arr,float diameter, vec3d initial_pos,vec3d final_p
     int num_x,num_y,num_z;
 
     //first wall
-    num_x = static_cast<int>(ceil((final_pos.x - initial_pos.x)/diameter));
+    num_x = static_cast<int>(ceil((final_pos.x - initial_pos.x)/diameter)) + 1;
     num_y = static_cast<int>(ceil((final_pos.y - initial_pos.y)/diameter)) + 1;
     num_z = 1;
     dim3 grid(num_x,num_y,num_z);
     makePlane<<<grid,block>>>(position_arr,diameter,initial_pos,offset,1);
 
     offset = offset + num_x*num_y*num_z;
-
+    //printf("%d\n",offset);
     //second wall
     vec3d tmp_initial_pos;
     tmp_initial_pos.x = initial_pos.x;
@@ -129,13 +129,13 @@ void makeBox(vec3d* position_arr,float diameter, vec3d initial_pos,vec3d final_p
     makePlane<<<grid,block>>>(position_arr,diameter,tmp_initial_pos,offset,1);
 
     offset = offset + num_x*num_y*num_z;
-
+     //printf("%d\n",offset);
     //third wall
     tmp_initial_pos.x = initial_pos.x;
     tmp_initial_pos.y = initial_pos.y;
     tmp_initial_pos.z = initial_pos.z + diameter;
 
-    num_x = static_cast<int>(ceil((final_pos.x - initial_pos.x)/diameter));
+    num_x = static_cast<int>(ceil((final_pos.x - initial_pos.x)/diameter)) + 1;
     num_y = 1;
     num_z = static_cast<int>(ceil((final_pos.z - initial_pos.z)/diameter)) - 1;
 
@@ -144,40 +144,42 @@ void makeBox(vec3d* position_arr,float diameter, vec3d initial_pos,vec3d final_p
     makePlane<<<grid2,block>>>(position_arr,diameter,tmp_initial_pos,offset,2);
 
     offset = offset + num_x*num_y*num_z;
-
+    //printf("%d\n",offset);
     //forth wall
     tmp_initial_pos.x = initial_pos.x;
     tmp_initial_pos.y = final_pos.y;
     tmp_initial_pos.z = initial_pos.z + diameter;
 
-    num_x = static_cast<int>(ceil((final_pos.x - initial_pos.x)/diameter));
-    num_y = 1;
-    num_z = static_cast<int>(ceil((final_pos.z - initial_pos.z)/diameter));
+    // num_x = static_cast<int>(ceil((final_pos.x - initial_pos.x)/diameter));
+    // num_y = 1;
+    // num_z = static_cast<int>(ceil((final_pos.z - initial_pos.z)/diameter)) - 1;
 
     makePlane<<<grid2,block>>>(position_arr,diameter,tmp_initial_pos,offset,2);
 
     offset = offset + num_x*num_y*num_z;
-
+    //printf("%d\n",offset);
     //fifth wall
     num_x = 1;
     num_y = static_cast<int>(ceil((final_pos.y - initial_pos.y)/diameter)) - 1;
-    num_z = static_cast<int>(ceil((final_pos.z - initial_pos.z)/diameter));
+    num_z = static_cast<int>(ceil((final_pos.z - initial_pos.z)/diameter)) - 1;
 
     tmp_initial_pos.x = initial_pos.x;
     tmp_initial_pos.y = initial_pos.y + diameter;
-    tmp_initial_pos.z = initial_pos.z;
+    tmp_initial_pos.z = initial_pos.z + diameter;
 
     dim3 grid3(num_x,num_y,num_z);
 
     makePlane<<<grid3,block>>>(position_arr,diameter,tmp_initial_pos,offset,3);
 
-    // offset = offset + num_x*num_y*num_z;
+    offset = offset + num_x*num_y*num_z;
+    //printf("%d\n",offset);
+    //sixth wall
 
-    // tmp_initial_pos.x = final_pos.x - diameter;
-    // tmp_initial_pos.y = initial_pos.y + diameter;
-    // tmp_initial_pos.z = initial_pos.z + diameter;
+    tmp_initial_pos.x = final_pos.x;
+    tmp_initial_pos.y = initial_pos.y + diameter;
+    tmp_initial_pos.z = initial_pos.z + diameter;
 
-    // makePlane<<<grid3,block>>>(position_arr,diameter,tmp_initial_pos,offset,3);
+    makePlane<<<grid3,block>>>(position_arr,diameter,tmp_initial_pos,offset,3);
 
     return;
 }

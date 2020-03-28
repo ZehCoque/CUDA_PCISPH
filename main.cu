@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string.h>
 #include <math.h>
+#include <list>
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include <algorithm>
@@ -11,18 +12,19 @@
 #include <stdio.h>
 #include "utilities.cu"
 #include "VTK.cu"
-#include <limits>
+#include "hashing.cu"
+
 
 //float inf = std::numeric_limits<float>::infinity();
 
 // Initial conditions
-const float PARTICLE_RADIUS = 1/10.f;
+const float PARTICLE_RADIUS = 1/100.f;
 const float MASS = M_PI * pow(PARTICLE_RADIUS,3)/3*4;
 const float PARTICLE_DIAMETER = 2 * PARTICLE_RADIUS;
 const float F_INITIAL_POSITION[3] = { -0.5,-0.5,-0.5 }; //Fluid particles initial position
 const float F_FINAL_POSITION[3] = { 0.5,0.5,0.5 }; //Fluid particles final position
 const float B_INITIAL_POSITION[3] = { -0.5,-0.5,-0.5 }; //Boundary particles final position
-const float B_FINAL_POSITION[3] = { 1,1,1 }; //Boundary particles final position
+const float B_FINAL_POSITION[3] = { 0.5,0.5,0.5 }; //Boundary particles final position
 int NPD[3];
 float VOLUME = 1;
 const int SIMULATION_DIMENSION = 3;
@@ -58,10 +60,10 @@ int main(void)
     // Get number per dimension (NPD) of FLUID particles for hexadecimal packing (assuming use of makeprism function)
     for (int i = 0; i < 3; i++) {
         if (i==1){
-            NPD[i] = floor((F_FINAL_POSITION[i] - F_INITIAL_POSITION[i]) / (sqrt(3.f)/2.f*PARTICLE_DIAMETER)) - 1;
+            NPD[i] = floor((F_FINAL_POSITION[i] - F_INITIAL_POSITION[i]) / (sqrt(3.f)/2.f*PARTICLE_DIAMETER));
             VOLUME = VOLUME * (F_FINAL_POSITION[i] - F_INITIAL_POSITION[i]);
         } else {
-            NPD[i] = floor((F_FINAL_POSITION[i] - F_INITIAL_POSITION[i]) / PARTICLE_DIAMETER) - 1;
+            NPD[i] = floor((F_FINAL_POSITION[i] - F_INITIAL_POSITION[i]) / PARTICLE_DIAMETER);
             VOLUME = VOLUME * (F_FINAL_POSITION[i] - F_INITIAL_POSITION[i]);
         }
     }
@@ -111,7 +113,7 @@ int main(void)
 
     // Get number per dimension (NPD) of BOUNDARY particles for hexadecimal packing (assuming use of makebox function)
     for (int i = 0; i < 3; i++) {
-            NPD[i] = ceil((B_FINAL_POSITION[i] - B_INITIAL_POSITION[i]) / PARTICLE_DIAMETER);
+            NPD[i] = ceil((B_FINAL_POSITION[i] - B_INITIAL_POSITION[i]) / PARTICLE_DIAMETER) + 2;
     }
     
     int B = NPD[0] * NPD[1] * NPD[2] - (NPD[0]-2) * (NPD[1]-2) * (NPD[2]-2); //Number of boundary particles
@@ -123,9 +125,9 @@ int main(void)
     b_initial.y = B_INITIAL_POSITION[1] - PARTICLE_RADIUS;
     b_initial.z = B_INITIAL_POSITION[2] - PARTICLE_RADIUS;
     vec3d b_final;
-    b_final.x = b_initial.x + PARTICLE_DIAMETER*NPD[0];
-    b_final.y = b_initial.y + PARTICLE_DIAMETER*NPD[1];
-    b_final.z = b_initial.z + PARTICLE_DIAMETER*NPD[2];
+    b_final.x = b_initial.x + PARTICLE_DIAMETER*(NPD[0] - 1);
+    b_final.y = b_initial.y + PARTICLE_DIAMETER*(NPD[1] - 1);
+    b_final.z = b_initial.z + PARTICLE_DIAMETER*(NPD[2] - 1);
 
     cudaMallocManaged(&BOUNDARY_POSITIONS, SIM_SIZE * sizeof(float));
     //cudaMallocManaged(&b_initial, 3 * sizeof(float));

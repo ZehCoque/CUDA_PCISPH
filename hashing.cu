@@ -1,6 +1,47 @@
 //defining 3 prime numbers
-#include<bits/stdc++.h> 
+//#include<bits/stdc++.h> 
+
+bool isPrime(int n)  
+{  
+    // Corner cases  
+    if (n <= 1)  return false;  
+    if (n <= 3)  return true;  
+    
+    // This is checked so that we can skip   
+    // middle five numbers in below loop  
+    if (n%2 == 0 || n%3 == 0) return false;  
+    
+    for (int i=5; i*i<=n; i=i+6)  
+        if (n%i == 0 || n%(i+2) == 0)  
+           return false;
+    
+    return true;
+}  
   
+// Function to return the smallest 
+// prime number greater than N 
+int nextPrime(int N) 
+{ 
+  
+    // Base case 
+    if (N <= 1) 
+        return 2; 
+  
+    int prime = N; 
+    bool found = false; 
+  
+    // Loop continuously until isPrime returns 
+    // true for a number greater than n 
+    while (!found) { 
+        prime++; 
+  
+        if (isPrime(prime)) 
+            found = true; 
+    } 
+  
+    return prime; 
+} 
+
 class Hash 
 { 
     int BUCKET;    // No. of buckets 
@@ -19,14 +60,15 @@ public:
     __device__ void deleteItem(int key); 
   
     // hash function to map values to key 
-    __device__ int hashFunction(vec3d point) { 
+    __device__ int hashFunction(vec3d point,float h) { 
 
-        vec3d hashed_point;
-        hashed_point.x = p1*point.x;
-        hashed_point.y = p2*point.y;
-        hashed_point.z = p1*point.z;
+        int r_x,r_y,r_z;
 
-        return ((hashed_point.x ^ hashed_point.y ^ hashed_point.z) % BUCKET); 
+        r_x = static_cast<int>(floor(point.x/h));
+        r_y = static_cast<int>(floor(point.y/h));
+        r_z = static_cast<int>(floor(point.z/h));
+
+        return ((r_x ^ r_y ^ r_z) % BUCKET); 
     } 
   
     __device__ void displayHash(); 
@@ -35,16 +77,16 @@ public:
 Hash::Hash(int b) 
 { 
     this->BUCKET = b; 
-    table = new list<int>[BUCKET]; 
+    table = new std::list<int>[BUCKET]; 
 } 
   
-void Hash::insertItem(vec3d point) 
+__device__ void Hash::insertItem(vec3d point) 
 { 
     int index = hashFunction(point); 
     table[index].push_back(key);  
 } 
   
-void Hash::deleteItem(int key) 
+__device__ void Hash::deleteItem(int key) 
 { 
   // get the hash index of key 
   int index = hashFunction(key); 
@@ -63,11 +105,11 @@ void Hash::deleteItem(int key)
 } 
   
 // function to display hash table 
-void Hash::displayHash() { 
+__device__ void Hash::displayHash() { 
   for (int i = 0; i < BUCKET; i++) { 
     cout << i; 
     for (auto x : table[i]) 
-      cout << " --> " << x; 
-    cout << endl; 
+      std::cout << " --> " << x; 
+    std::cout << endl; 
   } 
 } 

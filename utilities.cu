@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdio.h>
-#include <dirent.h>
+#include "include/dirent.h"
 #include <sstream> 
 #include <vector>
 
