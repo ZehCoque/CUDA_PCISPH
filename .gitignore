@@ -6,3 +6,10 @@ Debug/
 PCISPH.sln
 PCISPH.vcxproj
 results/
+*.exe
+*.lib
+*.exp
+*.sln
+*.vcxproj
+*.vcxproj.user
+.vs/
