@@ -1,7 +1,7 @@
-// basic file operations
-//#include "common.cuh"
+#include "VTK.cuh"
+#include "utilities.cuh"
 
-char* VTU_Writer(char path[], int iteration, vec3d* points, int numberOfPoints, float** pointData[], vec3d** vectorData[], std::string pointDataNames[], std::string vectorDataNames[], int size_pointData, int size_vectorData, char* fullpath, int type = 0)
+char* VTU_Writer(char path[], int iteration, vec3d* points, int numberOfPoints, float** pointData[], vec3d** vectorData[], std::string pointDataNames[], std::string vectorDataNames[], int size_pointData, int size_vectorData, char* fullpath, int type)
 {
 	if (type == 0) {
 		char buffer[33];

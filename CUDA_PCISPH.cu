@@ -1,10 +1,8 @@
 #define _USE_MATH_DEFINES
 
-#include "common.cuh"
-#include "device_functions.cu"
-#include "kernel_functions.cu"
-#include "utilities.cu"
-#include "VTK.cu"
+#include "particle_positions.cuh"
+#include "utilities.cuh"
+#include "VTK.cuh"
 //#include "hashing.cu"
 
 //float inf = std::numeric_limits<float>::infinity();
@@ -17,7 +15,6 @@ const float F_INITIAL_POSITION[3] = { -0.5,-0.5,-0.5 }; //Fluid particles initia
 const float F_FINAL_POSITION[3] = { 0.5,0.5,0.5 }; //Fluid particles final position
 const float B_INITIAL_POSITION[3] = { -0.5,-0.5,-0.5 }; //Boundary particles final position
 const float B_FINAL_POSITION[3] = { 0.5,0.5,0.5 }; //Boundary particles final position
-int NPD[3];
 float VOLUME = 1;
 const int SIMULATION_DIMENSION = 3;
 const int x = 40; // Number of particles inside the smoothing length
@@ -28,11 +25,9 @@ float simulation_time = 0;
 
 // Value for PI -> M_PI
 
-// Algorithm variables
-// int vtu_no_of_lines = 0;
-
 int main(void)
 {
+	int block_size = 1024;
 	// get main path of simulation
 	char main_path[1024];
 	getMainPath(main_path);
@@ -49,7 +44,9 @@ int main(void)
 
 	// create directory for vtu files
 	CreateDir(vtu_path);
+
 	// Get number per dimension (NPD) of FLUID particles for hexadecimal packing (assuming use of makeprism function)
+	int NPD[3];
 	for (int i = 0; i < 3; i++) {
 		if (i == 1) {
 			NPD[i] = floor((F_FINAL_POSITION[i] - F_INITIAL_POSITION[i]) / (sqrt(3.f) / 2.f * PARTICLE_DIAMETER));
@@ -70,48 +67,41 @@ int main(void)
 	gravity.y = -9.81;
 	gravity.z = 0;
 
-	//const float boundary_radius = h/4;
-	//const float boundary_diameter = h/2;
-
-	//printf("%g\n",h);
+	const float boundary_radius = h/4;
+	const float boundary_diameter = h/2;
 
 	cudaError_t cudaStatus;
 	cudaStatus = cudaSetDevice(0);
 
-	vec3d* FLUID_POSITIONS;
 	vec3d f_initial;
 	f_initial.x = F_INITIAL_POSITION[0] + PARTICLE_RADIUS;
 	f_initial.y = F_INITIAL_POSITION[1] + PARTICLE_RADIUS;
 	f_initial.z = F_INITIAL_POSITION[2] + PARTICLE_RADIUS;
 
-	// vec3d f_final;
-	// f_final.x = F_FINAL_POSITION[0] - PARTICLE_RADIUS;
-	// f_final.y = F_FINAL_POSITION[1] - PARTICLE_RADIUS;
-	// f_final.z = F_FINAL_POSITION[2] - PARTICLE_RADIUS;
+	size_t bytes_fluid_particles = SIM_SIZE * sizeof(float);
 
-	// Allocate Unified Memory accessible from CPU or GPU
-	cudaMallocManaged(&FLUID_POSITIONS, SIM_SIZE * sizeof(float));
+	vec3d* FLUID_POSITIONS; //host pointer
+	FLUID_POSITIONS = (vec3d*)malloc(bytes_fluid_particles);
 
-	// Define grid and block allocations for CUDA kernel function
-	dim3 block(1, 1, 1);
-	dim3 grid(NPD[0], NPD[1], NPD[2]);
+	vec3d* D_FLUID_POSITIONS; //device pointer
+	cudaMalloc((void**)&D_FLUID_POSITIONS, bytes_fluid_particles);
+
+	// grid -> number of blocks
+	// block -> number of threads
+
+	int grid_size = N/ block_size + 1;
 
 	//generate locations for each particle
-	makePrism << <grid, block >> > (FLUID_POSITIONS, PARTICLE_DIAMETER, f_initial);
-	cudaStatus = cudaGetLastError();
-	if (cudaStatus != cudaSuccess)
-	{
-		fprintf(stderr, "Kernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-	}
+	printf("%p\n", NPD);
+	makePrism << <grid_size, block_size >> > (D_FLUID_POSITIONS, PARTICLE_DIAMETER, f_initial, NPD, N);
 
-	// Get number per dimension (NPD) of BOUNDARY particles for hexadecimal packing (assuming use of makebox function)
+	// Get number per dimension (NPD) of BOUNDARY particles without compact packing (assuming use of makebox function)
 	for (int i = 0; i < 3; i++) {
 		NPD[i] = ceil((B_FINAL_POSITION[i] - B_INITIAL_POSITION[i]) / PARTICLE_DIAMETER) + 2;
 	}
 
 	int B = NPD[0] * NPD[1] * NPD[2] - (NPD[0] - 2) * (NPD[1] - 2) * (NPD[2] - 2); //Number of boundary particles
 	SIM_SIZE = NPD[0] * NPD[1] * NPD[2] * SIMULATION_DIMENSION;
-	vec3d* BOUNDARY_POSITIONS;
 
 	vec3d b_initial;
 	b_initial.x = B_INITIAL_POSITION[0] - PARTICLE_RADIUS;
@@ -122,28 +112,20 @@ int main(void)
 	b_final.y = b_initial.y + PARTICLE_DIAMETER * (NPD[1] - 1);
 	b_final.z = b_initial.z + PARTICLE_DIAMETER * (NPD[2] - 1);
 
-	cudaMallocManaged(&BOUNDARY_POSITIONS, SIM_SIZE * sizeof(float));
-	//cudaMallocManaged(&b_initial, 3 * sizeof(float));
-	// Define grid and block allocations for CUDA kernel function
-	dim3 grid2(NPD[0], NPD[1], NPD[2]);
+	size_t bytes_boundary_particles = SIM_SIZE * sizeof(float);
+	vec3d* BOUNDARY_POSITIONS; //host pointer
+	BOUNDARY_POSITIONS = (vec3d*)malloc(bytes_boundary_particles); //allocate memory in the host
 
-	//generate locations for each particle
-	makeBox(BOUNDARY_POSITIONS, PARTICLE_DIAMETER, b_initial, b_final);
-	cudaStatus = cudaGetLastError();
-	if (cudaStatus != cudaSuccess)
-	{
-		fprintf(stderr, "Kernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-	}
+	vec3d* D_BOUNDARY_POSITIONS; //device pointer
+	cudaMalloc((void**)&D_BOUNDARY_POSITIONS, bytes_boundary_particles); // allocate memory in the device
+
+	makeBox(D_BOUNDARY_POSITIONS, PARTICLE_DIAMETER, b_initial, b_final, block_size);
 
 	int T = N + B; //Total number of particles
 
 	std::cout << "Initializing with " << N << " fluid particles and " << B << " boundary particles.\n"
 		<< "Total of " << T << " particles.\n"
 		<< "Smoothing radius = " << h << " m.\n";
-
-	// for (int i = 0; i < B;i++){
-	//     std::cout << BOUNDARY_POSITIONS[i].x << " " << BOUNDARY_POSITIONS[i].y << " " << BOUNDARY_POSITIONS[i].z << std::endl;
-	// }
 
 	float* density = new float[N];
 	for (int i = 0; i < N; i++) {
@@ -166,7 +148,15 @@ int main(void)
 	std::string vectorDataNames[] = { "velocity" };
 
 	char vtu_fullpath[1024];
-	cudaDeviceSynchronize();
+	// cudaDeviceSynchronize();
+
+	cudaMemcpy(FLUID_POSITIONS, D_FLUID_POSITIONS, bytes_fluid_particles, cudaMemcpyDeviceToHost);
+	cudaMemcpy(BOUNDARY_POSITIONS, D_BOUNDARY_POSITIONS, bytes_boundary_particles, cudaMemcpyDeviceToHost);
+
+	// Free memory
+	cudaFree(D_FLUID_POSITIONS);
+	cudaFree(D_BOUNDARY_POSITIONS);
+
 	strcpy(vtu_fullpath, VTU_Writer(vtu_path, iteration, FLUID_POSITIONS, N, pointData, vectorData, pointDataNames, vectorDataNames, size_pointData, size_vectorData, vtu_fullpath));
 
 	float* psi = new float[B];
@@ -192,10 +182,6 @@ int main(void)
 	VTU_Writer(main_path, iteration, BOUNDARY_POSITIONS, B, pointData2, vectorData2, pointDataNames2, vectorDataNames2, size_pointData2, size_vectorData2, vtu_fullpath, 1);
 
 	VTK_Group(vtk_group_path, vtu_fullpath, simulation_time);
-
-	// Free memory
-	cudaFree(FLUID_POSITIONS);
-	cudaFree(BOUNDARY_POSITIONS);
 
 	return 0;
 }

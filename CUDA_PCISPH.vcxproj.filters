@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CudaCompile Include="CUDA_PCISPH.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="hashing.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="utilities.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="VTK.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="common.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="utilities.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="device_functions.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VTK.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="particle_positions.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{54ff927a-0e1f-4406-b077-d457e3cc15ee}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{8b82a39d-1207-4665-887f-410423ce1e92}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

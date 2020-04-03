@@ -1,12 +1,10 @@
-//#include "common.cuh"
-
+#include "utilities.cuh"
 struct stat info;
-
-inline int fileExists(const char* const path) {
+int fileExists(const char* const path) {
 	return stat(path, &info);
 }
 
-inline int dirExists(const char* const path)
+int dirExists(const char* const path)
 {
 	int statRC = stat(path, &info);
 	if (statRC != 0)

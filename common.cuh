@@ -1,4 +1,4 @@
-//#pragma once
+#pragma once
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -13,11 +13,20 @@
 #include "include/dirent.h"
 #include <sstream>
 #include <vector>
-#include <cuda_runtime.h>
-#include <device_launch_parameters.h>
 #include <algorithm>
+
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 
 struct vec3d
 {
 	float x, y, z;
 };
+
+inline void gpuAssert(cudaError_t code, const char* file, int line, bool abort = true)
+{
+	if (code != cudaSuccess)
+	{
+		fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+		if (abort) exit(code);
+	}
+}

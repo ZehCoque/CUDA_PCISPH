@@ -1,6 +1,7 @@
-//All functions only callable from the device.
-
-#include "device_functions.cuh"
+#pragma once
+#include <math.h>
+#include <cuda_runtime.h>
+#include <device_launch_parameters.h>
 
 __device__ int getGlobalIdx_3D_3D() {
 	int blockId = blockIdx.x + blockIdx.y * gridDim.x
