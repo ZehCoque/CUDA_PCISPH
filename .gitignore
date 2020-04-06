@@ -9,7 +9,5 @@ results/
 *.exe
 *.lib
 *.exp
-*.sln
-*.vcxproj
 *.vcxproj.user
 .vs/
