@@ -8,7 +8,7 @@
 //float inf = std::numeric_limits<float>::infinity();
 
 // Initial conditions
-const float PARTICLE_RADIUS = 1 / 100.f;
+const float PARTICLE_RADIUS = 1 / 10.f;
 const float MASS = (float)M_PI * pow(PARTICLE_RADIUS, 3.f) / 3.f * 4.f;
 const float PARTICLE_DIAMETER = 2 * PARTICLE_RADIUS;
 const float F_INITIAL_POSITION[3] = { -0.5,-0.5,-0.5 }; //Fluid particles initial position
@@ -58,6 +58,11 @@ int main(void)
 		}
 	}
 
+	//Passing NPD to device
+	int* D_NPD;
+	cudaMalloc((void**)&D_NPD,SIMULATION_DIMENSION*sizeof(float));
+	cudaMemcpy(D_NPD, NPD, SIMULATION_DIMENSION * sizeof(float), cudaMemcpyHostToDevice);
+
 	int N = NPD[0] * NPD[1] * NPD[2]; //number of fluid particles
 	int SIM_SIZE = N * SIMULATION_DIMENSION;
 	const float h = pow(3.f * VOLUME * x / (4.f * M_PI * N), 1.f / 3.f);
@@ -92,13 +97,15 @@ int main(void)
 	int grid_size = N/ block_size + 1;
 
 	//generate locations for each particle
-	printf("%p\n", NPD);
-	makePrism << <grid_size, block_size >> > (D_FLUID_POSITIONS, PARTICLE_DIAMETER, f_initial, NPD, N);
+	makePrism << <grid_size, block_size >> > (D_FLUID_POSITIONS, PARTICLE_DIAMETER, f_initial, D_NPD, N);
 
 	// Get number per dimension (NPD) of BOUNDARY particles without compact packing (assuming use of makebox function)
 	for (int i = 0; i < 3; i++) {
 		NPD[i] = ceil((B_FINAL_POSITION[i] - B_INITIAL_POSITION[i]) / PARTICLE_DIAMETER) + 2;
 	}
+
+	//copy new NPD to device memory
+	cudaMemcpy(D_NPD, NPD, SIMULATION_DIMENSION * sizeof(float), cudaMemcpyHostToDevice);
 
 	int B = NPD[0] * NPD[1] * NPD[2] - (NPD[0] - 2) * (NPD[1] - 2) * (NPD[2] - 2); //Number of boundary particles
 	SIM_SIZE = NPD[0] * NPD[1] * NPD[2] * SIMULATION_DIMENSION;
@@ -119,7 +126,7 @@ int main(void)
 	vec3d* D_BOUNDARY_POSITIONS; //device pointer
 	cudaMalloc((void**)&D_BOUNDARY_POSITIONS, bytes_boundary_particles); // allocate memory in the device
 
-	makeBox(D_BOUNDARY_POSITIONS, PARTICLE_DIAMETER, b_initial, b_final, block_size);
+	makeBox(D_BOUNDARY_POSITIONS, PARTICLE_DIAMETER, b_initial, b_final, block_size,D_NPD);
 
 	int T = N + B; //Total number of particles
 
