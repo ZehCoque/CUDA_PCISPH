@@ -8,7 +8,7 @@
 //float inf = std::numeric_limits<float>::infinity();
 
 // Initial conditions
-const float PARTICLE_RADIUS = 1 / 10.f;
+const float PARTICLE_RADIUS = 0.01f;
 const float MASS = (float)M_PI * pow(PARTICLE_RADIUS, 3.f) / 3.f * 4.f;
 const float PARTICLE_DIAMETER = 2 * PARTICLE_RADIUS;
 const float F_INITIAL_POSITION[3] = { -0.5,-0.5,-0.5 }; //Fluid particles initial position
