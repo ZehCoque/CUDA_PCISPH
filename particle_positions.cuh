@@ -12,7 +12,7 @@ __global__ void makePrism(vec3d* position_arr, const float diameter, const vec3d
 	int j = (index / NPD[0]) % NPD[1];
 	int k = index / (NPD[0]*NPD[1]);
 
-	if (index > size) {
+	if (index >= size) {
 		return;
 	}
 

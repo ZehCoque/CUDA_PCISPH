@@ -12,6 +12,13 @@ __device__ int getGlobalIdx_3D_3D() {
 	return threadId;
 };
 
+__device__ int getGlobalIdx_2D_2D() {
+	int blockId = blockIdx.x + blockIdx.y * gridDim.x;
+	int threadId = blockId * (blockDim.x * blockDim.y)
+		+ (threadIdx.y * blockDim.x) + threadIdx.x;
+	return threadId;
+}
+
 __device__ int getGlobalIdx_1D_1D() {
 	return blockIdx.x * blockDim.x + threadIdx.x;
 }

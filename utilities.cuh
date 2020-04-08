@@ -1,5 +1,6 @@
 #pragma once
 #include "common.cuh"
+#include <cuda_runtime.h>
 //struct stat info;
 int fileExists(const char* const path);
 
