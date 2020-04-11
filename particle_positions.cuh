@@ -89,7 +89,7 @@ void makeBox(vec3d* position_arr, float diameter, vec3d initial_pos, vec3d final
 	makePlane << <grid_size, block_size >> > (position_arr, diameter, initial_pos, offset, 1, size,D_NPD);
 
 	offset = offset + num_x * num_y * num_z;
-	printf("%d\n",offset);
+	//printf("%d\n",offset);
 	//second wall
 	vec3d tmp_initial_pos;
 	tmp_initial_pos.x = initial_pos.x;
@@ -102,7 +102,7 @@ void makeBox(vec3d* position_arr, float diameter, vec3d initial_pos, vec3d final
 	makePlane << <grid_size, block_size >> > (position_arr, diameter, tmp_initial_pos, offset, 1, size,D_NPD);
 
 	offset = offset + num_x * num_y * num_z;
-	printf("%d\n",offset);
+	//printf("%d\n",offset);
 	//third wall
 	tmp_initial_pos.x = initial_pos.x;
 	tmp_initial_pos.y = initial_pos.y;
@@ -118,7 +118,7 @@ void makeBox(vec3d* position_arr, float diameter, vec3d initial_pos, vec3d final
 	makePlane << <grid_size, block_size >> > (position_arr, diameter, tmp_initial_pos, offset, 2, size,D_NPD);
 
 	offset = offset + num_x * num_y * num_z;
-	printf("%d\n",offset);
+	//printf("%d\n",offset);
 	//forth wall
 	tmp_initial_pos.x = initial_pos.x;
 	tmp_initial_pos.y = final_pos.y;
@@ -130,7 +130,7 @@ void makeBox(vec3d* position_arr, float diameter, vec3d initial_pos, vec3d final
 	makePlane << <grid_size, block_size >> > (position_arr, diameter, tmp_initial_pos, offset, 2, size,D_NPD);
 
 	offset = offset + num_x * num_y * num_z;
-	printf("%d\n",offset);
+	//printf("%d\n",offset);
 	//fifth wall
 	num_x = 1;
 	num_y = static_cast<int>(ceil((final_pos.y - initial_pos.y) / diameter)) - 1;
@@ -147,7 +147,7 @@ void makeBox(vec3d* position_arr, float diameter, vec3d initial_pos, vec3d final
 	makePlane << <grid_size, block_size >> > (position_arr, diameter, tmp_initial_pos, offset, 3, size,D_NPD);
 
 	offset = offset + num_x * num_y * num_z;
-	printf("%d\n",offset);
+	//printf("%d\n",offset);
 	//sixth wall
 
 	tmp_initial_pos.x = final_pos.x;

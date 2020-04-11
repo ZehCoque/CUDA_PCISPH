@@ -4,9 +4,6 @@
     <CudaCompile Include="CUDA_PCISPH.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
-    <CudaCompile Include="hashing.cu">
-      <Filter>Source Files</Filter>
-    </CudaCompile>
     <CudaCompile Include="utilities.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
@@ -31,6 +28,18 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="hashing.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="particle_parameters.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="kernels.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="global_variables.cuh">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

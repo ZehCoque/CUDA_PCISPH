@@ -30,7 +30,7 @@ char* VTU_Writer(char path[], int iteration, vec3d* points, int numberOfPoints, 
 	vtu_file << "</DataArray>\n"
 		<< "</Points>\n";
 
-	vtu_file << "<PointData Scalars=\"density\">\n";
+	vtu_file << "<PointData Scalars=\"" << pointDataNames[0] << "\">\n";
 
 	for (int i = 0; i < size_pointData; i++) {
 		float* data = *pointData[i];
