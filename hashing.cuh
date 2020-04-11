@@ -52,7 +52,7 @@ private:
     int p1 = 73856093;
     int p2 = 19349669;
     int p3 = 83492791;
-
+             
 public:
 
     Hash(int);  // Constructor
@@ -76,12 +76,12 @@ __device__ int Hash::hashFunction(vec3d point,float h) {
 
     int r_x,r_y,r_z;
 
-    r_x = static_cast<int>((point.x/h)) * this->p1;
-    r_y = static_cast<int>((point.y/h)) * this->p2;
-    r_z = static_cast<int>((point.z/h)) * this->p3;
+    r_x = static_cast<int>(floor(point.x/h)) * this->p1;
+    r_y = static_cast<int>(floor(point.y/h)) * this->p2;
+    r_z = static_cast<int>(floor(point.z/h)) * this->p3;
     //printf("[%g %g %g] -> %d\n", point.x, point.y, point.z, (r_x ^ r_y ^ r_z) & this->hashtable_size);
-    //printf("%d %d\n", (r_x ^ r_y ^ r_z), this->hashtable_size);
-    return ((r_x ^ r_y ^ r_z) & this->hashtable_size) - 1;
+    //printf("%d %d %d\n", (r_x ^ r_y ^ r_z), this->hashtable_size,(r_x ^ r_y ^ r_z) % this->hashtable_size);
+    return ((r_x ^ r_y ^ r_z) & (this->hashtable_size - 1));
 }
 
 __device__ void Hash::insertItem(int* hashtable, vec3d point, int point_id, float h, size_t pitch, int Ncols)
@@ -113,21 +113,30 @@ __device__ int* Hash::getPossibleNeighbors(int* hashtable, vec3d point,float h,i
                 BB.y = point.y + j * h;
                 BB.z = point.z + k * h;
                 int hash_index = hashFunction(BB, h);
-                printf("%d\n", hash_index);
+                //printf("[%g %g %g] + [%g %g %g] = [%g %g %g] -> %d\n", point.x, point.y, point.z,h*i,h*j,h*k,BB.x,BB.y,BB.z, hash_index);
                 if (hash_index >= 0) {
                     int* row_a = (int*)((char*)hashtable + hash_index * pitch);
-
                     for (int t = 0; t < Ncols; t++) {
                         if (row_a[t] != -1) {
                             possible_neighbors[count] = row_a[t];
                             count++;
                         }
                     }
+                    
                 }
             }
         }
     } 
-
+    for (int t = 0; t < 800; t++) {
+        int check_value = possible_neighbors[t];
+        if (check_value != -1) {
+            for (int g = t + 1; g < 800; g++) {
+                if (possible_neighbors[g] == check_value) {
+                    possible_neighbors[g] = -1;
+                }
+            }
+        }
+    }
 
     return possible_neighbors;
 }

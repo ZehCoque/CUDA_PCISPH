@@ -9,7 +9,6 @@ __device__ float distance(vec3d point1, vec3d point2) {
 
 __device__ float Poly6_Kernel(float r, float h)
 {
-	const float pi = 3.141592f;
 	const float invh = 1 / h;
 	const float invh9 = powf(invh, 9);
 	const float tmp = powf(h, 2) - powf(r, 2);

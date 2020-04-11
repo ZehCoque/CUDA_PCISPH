@@ -18,7 +18,7 @@ char* VTU_Writer(char path[], int iteration, vec3d* points, int numberOfPoints, 
 
 	std::ofstream vtu_file;
 	vtu_file.open(fullpath);
-	//for (int i = 0;i < points.size(); i++)
+	
 	vtu_file << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"BigEndian\">\n"
 		<< "<UnstructuredGrid>\n"
 		<< "<Piece NumberOfPoints=\"" << numberOfPoints << "\" NumberOfCells=\"" << numberOfPoints << "\">\n"

@@ -9,7 +9,7 @@
 //float inf = std::numeric_limits<float>::infinity();
 
 // Initial conditions
-const float PARTICLE_RADIUS = 0.25f;
+const float PARTICLE_RADIUS = 0.01f;
 const float MASS = (float)M_PI *- pow(PARTICLE_RADIUS, 3.f) / 3.f * 4.f;
 const float PARTICLE_DIAMETER = 2 * PARTICLE_RADIUS;
 const float F_INITIAL_POSITION[3] = { -0.5,-0.5,-0.5 }; //Fluid particles initial position
@@ -24,6 +24,18 @@ int iteration = 1;
 float simulation_time = 0;
 
 // Value for PI -> M_PI
+
+int hashFunction(vec3d point, float h,int hashtable_size) {
+
+	int r_x, r_y, r_z;
+
+	r_x = static_cast<int>((point.x / h)) * 73856093;
+	r_y = static_cast<int>((point.y / h)) * 19349669;
+	r_z = static_cast<int>((point.z / h)) * 83492791;
+	//printf("[%g %g %g] -> %d\n", point.x, point.y, point.z, (r_x ^ r_y ^ r_z) & this->hashtable_size);
+	//printf("%d %d\n", (r_x ^ r_y ^ r_z), this->hashtable_size);
+	return ((r_x ^ r_y ^ r_z) & hashtable_size) - 1;
+	}
 
 int main(void)
 {
@@ -164,7 +176,7 @@ int main(void)
 	cudaFree(D_FLUID_POSITIONS);
 
 	// HASHING ONLY FOR BOUNDARY PARTICLES
-	const int hashtable_size = nextPrime(2*B);
+	const int hashtable_size = nextPrime(2*B) + 1;
 
 	Hash hash(hashtable_size);
 	const int particles_per_row = 200;
@@ -205,7 +217,8 @@ int main(void)
 
 	VTU_Writer(main_path, iteration, BOUNDARY_POSITIONS, B, boundary_point_data, boundary_vectorData, boundary_pointDataNames, boundary_vectorDataNames, size_pointData, size_vectorData, vtu_fullpath, 1);
 
-	gpuErrchk(cudaMemcpy2D(hashtable, particles_per_row * sizeof(int), d_hashtable, pitch, width, height, cudaMemcpyDeviceToHost));
+	//gpuErrchk(cudaMemcpy2D(hashtable, particles_per_row * sizeof(int), d_hashtable, pitch, width, height, cudaMemcpyDeviceToHost));
+
 	cudaDeviceSynchronize();
 
 	//END OF HASHING FOR BOUNDARIES

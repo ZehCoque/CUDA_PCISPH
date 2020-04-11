@@ -21,7 +21,7 @@ __global__ void boundaryPsi(float* psi, int* d_hashtable, const float rho_0, vec
 	for (int i = 0; i < 800; i++) {
 		if (possible_neighbors[i] != -1) {
 			//printf("%d\n", index);
-			//printf("a possible neighbor of particle %d at [%g %g %g] is %d at [%g %g %g]\n", 
+			//printf("%d %g %g %g %d %g %g %g\n", 
 				//index, points[index].x, points[index].y, points[index].z, possible_neighbors[i],points[possible_neighbors[i]].x, points[possible_neighbors[i]].y, points[possible_neighbors[i]].z);
 			float r = distance(points[index], points[possible_neighbors[i]]);
 			if (r <= h) {
