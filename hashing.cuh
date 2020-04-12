@@ -61,7 +61,7 @@ public:
 
     __device__ int hashFunction(vec3d,float);
     
-    __device__ int* getPossibleNeighbors(int*, vec3d, float,int, size_t);
+    __device__ void getPossibleNeighbors(int*,int*, vec3d, float, float,int, size_t);
 
 };
 
@@ -72,21 +72,21 @@ Hash::Hash(int b)
 }
 
 
-__device__ int Hash::hashFunction(vec3d point,float h) {
+__device__ int Hash::hashFunction(vec3d point,float invh) {
 
     int r_x,r_y,r_z;
 
-    r_x = static_cast<int>(floor(point.x/h)) * this->p1;
-    r_y = static_cast<int>(floor(point.y/h)) * this->p2;
-    r_z = static_cast<int>(floor(point.z/h)) * this->p3;
+    r_x = static_cast<int>(floor(point.x * invh)) * this->p1;
+    r_y = static_cast<int>(floor(point.y * invh)) * this->p2;
+    r_z = static_cast<int>(floor(point.z * invh)) * this->p3;
     //printf("[%g %g %g] -> %d\n", point.x, point.y, point.z, (r_x ^ r_y ^ r_z) & this->hashtable_size);
     //printf("%d %d %d\n", (r_x ^ r_y ^ r_z), this->hashtable_size,(r_x ^ r_y ^ r_z) % this->hashtable_size);
     return ((r_x ^ r_y ^ r_z) & (this->hashtable_size - 1));
 }
 
-__device__ void Hash::insertItem(int* hashtable, vec3d point, int point_id, float h, size_t pitch, int Ncols)
+__device__ void Hash::insertItem(int* hashtable, vec3d point, int point_id, float invh, size_t pitch, int Ncols)
 {
-    int hash_index = hashFunction(point, h);
+    int hash_index = hashFunction(point, invh);
     /*printf("[%g %g %g] -> %d\n", point.x, point.y, point.z, hash_index);*/
     int* row_a = (int*)((char*)hashtable + hash_index * pitch);
     for (int i = 0; i < Ncols; i++) {
@@ -97,10 +97,9 @@ __device__ void Hash::insertItem(int* hashtable, vec3d point, int point_id, floa
     }
 }
 
-__device__ int* Hash::getPossibleNeighbors(int* hashtable, vec3d point,float h,int Ncols,size_t pitch) {
+__device__ void Hash::getPossibleNeighbors(int* possible_neighbors,int* hashtable, vec3d point,float h,float invh,int Ncols,size_t pitch) {
     
     vec3d BB;
-    int possible_neighbors[800];
     int count = 0;
     for (int i = 0; i < 800; i++) {
         possible_neighbors[i] = -1;
@@ -112,7 +111,7 @@ __device__ int* Hash::getPossibleNeighbors(int* hashtable, vec3d point,float h,i
                 BB.x = point.x + i * h;
                 BB.y = point.y + j * h;
                 BB.z = point.z + k * h;
-                int hash_index = hashFunction(BB, h);
+                int hash_index = hashFunction(BB, invh);
                 //printf("[%g %g %g] + [%g %g %g] = [%g %g %g] -> %d\n", point.x, point.y, point.z,h*i,h*j,h*k,BB.x,BB.y,BB.z, hash_index);
                 if (hash_index >= 0) {
                     int* row_a = (int*)((char*)hashtable + hash_index * pitch);
@@ -138,10 +137,10 @@ __device__ int* Hash::getPossibleNeighbors(int* hashtable, vec3d point,float h,i
         }
     }
 
-    return possible_neighbors;
+    return;
 }
 
-__global__ void hashParticlePositions(int * d_hashtable,vec3d* points, float h,Hash hash,int size,size_t pitch,int Ncols){
+__global__ void hashParticlePositions(int * d_hashtable,vec3d* points, float invh,Hash hash,int size,size_t pitch,int Ncols){
 
     int index = getGlobalIdx_1D_1D();
 
@@ -149,7 +148,7 @@ __global__ void hashParticlePositions(int * d_hashtable,vec3d* points, float h,H
         return;
     }
 
-    hash.insertItem(d_hashtable,points[index],index,h, pitch, Ncols);
+    hash.insertItem(d_hashtable,points[index],index,invh, pitch, Ncols);
     return;
 }
 

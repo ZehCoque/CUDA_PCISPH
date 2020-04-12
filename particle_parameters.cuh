@@ -1,13 +1,11 @@
 #pragma once
-#include <cuda_runtime.h>
-#include <device_launch_parameters.h>
 #include "device_functions.cuh"
 #include "hashing.cuh"
 #include "kernels.cuh"
 #include "global_variables.cuh"
 #include "common.cuh"
 
-__global__ void boundaryPsi(float* psi, int* d_hashtable, const float rho_0, vec3d* points, float h, int Ncols, size_t pitch, Hash hash, int size) {
+__global__ void boundaryPsi(float* psi, int* d_hashtable, const float rho_0, vec3d* points, float h,float invh, int Ncols, size_t pitch, Hash hash, int size) {
 	
 	int index = getGlobalIdx_1D_1D();
 
@@ -15,7 +13,8 @@ __global__ void boundaryPsi(float* psi, int* d_hashtable, const float rho_0, vec
 		return;
 	}
 
-	int* possible_neighbors = hash.getPossibleNeighbors(d_hashtable, points[index], h, Ncols, pitch);
+	int possible_neighbors[800];
+	hash.getPossibleNeighbors(possible_neighbors,d_hashtable, points[index], h, invh, Ncols, pitch);
 
 	psi[index] = 0.f;
 	for (int i = 0; i < 800; i++) {

@@ -10,6 +10,9 @@
     <CudaCompile Include="VTK.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
+    <CudaCompile Include="initialization.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.cuh">
@@ -40,6 +43,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="global_variables.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="initialize.cuh">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

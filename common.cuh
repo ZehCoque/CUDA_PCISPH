@@ -5,7 +5,6 @@
 #include <windows.h>
 #include <cctype>
 #include <cstring>
-#include <math.h>
 #include <cmath>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -14,6 +13,8 @@
 #include <sstream>
 #include <vector>
 #include <algorithm>
+#include <cuda_runtime.h>
+#include <device_launch_parameters.h>
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 

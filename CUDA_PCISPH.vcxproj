@@ -84,6 +84,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <CudaCompile Include="CUDA_PCISPH.cu" />
+    <CudaCompile Include="initialization.cu" />
     <CudaCompile Include="utilities.cu" />
     <CudaCompile Include="VTK.cu" />
   </ItemGroup>
@@ -92,6 +93,7 @@
     <ClInclude Include="device_functions.cuh" />
     <ClInclude Include="global_variables.cuh" />
     <ClInclude Include="hashing.cuh" />
+    <ClInclude Include="initialize.cuh" />
     <ClInclude Include="kernels.cuh" />
     <ClInclude Include="particle_parameters.cuh" />
     <ClInclude Include="particle_positions.cuh" />
