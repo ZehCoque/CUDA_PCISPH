@@ -1,10 +1,15 @@
-
 #include "common.cuh"
-#include "initialize.cuh"
+#include "global_variables.cuh"
+
+int initialize();
+
+int mainLoop();
 
 int main(void)
 {
 	initialize();
+
+	mainLoop();
 
 	cudaDeviceReset();
 

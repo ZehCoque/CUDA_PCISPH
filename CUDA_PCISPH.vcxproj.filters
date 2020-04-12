@@ -13,6 +13,9 @@
     <CudaCompile Include="initialization.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
+    <CudaCompile Include="main_loop.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.cuh">
@@ -46,6 +49,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="initialize.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="main.cuh">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

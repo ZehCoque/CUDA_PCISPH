@@ -1,9 +1,52 @@
-#include "initialize.cuh"
+#include "particle_positions.cuh"
+#include "utilities.cuh"
+#include "VTK.cuh"
+#include "hashing.cuh"
+#include "particle_parameters.cuh"
+#include "global_variables.cuh"
+
+int block_size;
+char main_path[1024];
+char vtk_group_path[1024];
+vec3d* POSITION;
+vec3d* d_POSITION;
+vec3d* VELOCITY;
+vec3d* d_VELOCITY;
+vec3d* ST_FORCE;
+vec3d* d_ST_FORCE;
+vec3d* VISCOSITY_FORCE;
+vec3d* d_VISCOSITY_FORCE;
+vec3d* PRESSURE_FORCE;
+vec3d* d_PRESSURE_FORCE;
+float* DENSITY;
+float* d_DENSITY;
+float* PRESSURE;
+float* d_PRESSURE;
+float* MASS;
+float* d_MASS;
+int* TYPE;
+int* d_TYPE;
+int* hashtable;
+int* d_hashtable;
+const vec3d gravity;
+
+const float rho_0 = 1000.f;
+const float PARTICLE_RADIUS = 0.01f;
+const float MASS_calc = (float)M_PI * -pow(PARTICLE_RADIUS, 3.f) / 3.f * 4.f;
+const float PARTICLE_DIAMETER = 2 * PARTICLE_RADIUS;
+const float F_INITIAL_POSITION[3] = { -0.5,-0.5,-0.5 }; //Fluid particles initial position
+const float F_FINAL_POSITION[3] = { 0.5,0.5,0.5 }; //Fluid particles final position
+const float B_INITIAL_POSITION[3] = { -0.5,-0.5,-0.5 }; //Boundary particles final position
+const float B_FINAL_POSITION[3] = { 0.5,0.5,0.5 }; //Boundary particles final position
 
 int initialize() {
-	int block_size = 1024;
+	
+
+	//thread block size
+	block_size = 1024;
+
 	// get main path of simulation
-	char main_path[1024];
+	
 	getMainPath(main_path);
 
 	// write path for vtu files
@@ -12,7 +55,7 @@ int initialize() {
 	strcat(vtu_path, "/vtu");
 
 	// write path for vtk group file
-	char vtk_group_path[1024];
+	
 	strcpy(vtk_group_path, main_path);
 	strcat(vtk_group_path, "/PCISPH.pvd");
 
@@ -45,11 +88,6 @@ int initialize() {
 	const int x = 40; // Number of particles inside the smoothing length
 	const float h = powf(3.f * VOLUME * x / (4.f * (float)M_PI * N), 1.f / 3.f);
 	const float invh = 1 / h;
-
-	//defining gravity vector
-	gravity.x = 0.f;
-	gravity.y = -9.81f;
-	gravity.z = 0.f;
 
 	//const float boundary_radius = h/4;
 	//const float boundary_diameter = h/2;
@@ -116,33 +154,28 @@ int initialize() {
 	cudaFree(D_FLUID_POSITIONS);
 
 	// HASHING ONLY FOR BOUNDARY PARTICLES
-	const int hashtable_size = nextPrime(2 * B) + 1;
+	int hashtable_size = nextPrime(2 * B) + 1;
 
-	Hash hash(hashtable_size);
+	Hash b_hash(hashtable_size);
 	const int particles_per_row = 200;
 	size_t pitch = 0;
-	int* hashtable = new int[hashtable_size * particles_per_row];
+	hashtable = new int[hashtable_size * particles_per_row];
 	for (int i = 0; i < hashtable_size; ++i) {
 		for (int j = 0; j < particles_per_row; j++) {
 			hashtable[i * particles_per_row + j] = -1;
 		}
 	}
 
-	int* d_hashtable;
-
-	size_t width = particles_per_row * sizeof(int);
-	size_t height = hashtable_size;
-
 	gpuErrchk(cudaMallocPitch(&d_hashtable, &pitch, particles_per_row * sizeof(int), hashtable_size));
-	gpuErrchk(cudaMemcpy2D(d_hashtable, pitch, hashtable, particles_per_row * sizeof(int), width, height, cudaMemcpyHostToDevice));
+	gpuErrchk(cudaMemcpy2D(d_hashtable, pitch, hashtable, particles_per_row * sizeof(int), particles_per_row * sizeof(int), hashtable_size, cudaMemcpyHostToDevice));
 
 	grid_size = B / block_size + 1;
-	hashParticlePositions << <grid_size, block_size >> > (d_hashtable, D_BOUNDARY_POSITIONS, invh, hash, B, pitch, particles_per_row);
+	hashParticlePositions << <grid_size, block_size >> > (d_hashtable, D_BOUNDARY_POSITIONS, invh, b_hash, B, pitch, particles_per_row);
 
 	float* d_boundary_mass;
 	gpuErrchk(cudaMalloc((void**)&d_boundary_mass, B * sizeof(float)));
 
-	boundaryPsi << <grid_size, block_size >> > (d_boundary_mass, d_hashtable, rho_0, D_BOUNDARY_POSITIONS, h, invh, particles_per_row, pitch, hash, B);
+	boundaryPsi << <grid_size, block_size >> > (d_boundary_mass, d_hashtable, rho_0, D_BOUNDARY_POSITIONS, h, invh, particles_per_row, pitch, b_hash, B);
 
 	float* boundary_mass = (float*)malloc(B * sizeof(float));
 	gpuErrchk(cudaMemcpy(boundary_mass, d_boundary_mass, (size_t)B * sizeof(float), cudaMemcpyDeviceToHost));
@@ -173,7 +206,7 @@ int initialize() {
 	//Initializing main particle variables
 
 	//Defining and allocating main position variable
-	vec3d* POSITION;
+	
 	POSITION = (vec3d*)malloc(bytes_fluid_particles + bytes_boundary_particles);
 	for (int i = 0; i < N; i++) {
 		POSITION[i].x = FLUID_POSITIONS[i].x;
@@ -190,12 +223,12 @@ int initialize() {
 	free(BOUNDARY_POSITIONS);
 	//free(FLUID_POSITIONS);
 
-	vec3d* d_POSITION;
+	
 	gpuErrchk(cudaMalloc((void**)&d_POSITION, bytes_fluid_particles + bytes_boundary_particles));
 	gpuErrchk(cudaMemcpy(d_POSITION, POSITION, bytes_fluid_particles + bytes_boundary_particles, cudaMemcpyHostToDevice));
 
 	//Defining and allocating main velocity variable
-	vec3d* VELOCITY;
+	
 	VELOCITY = (vec3d*)malloc(bytes_fluid_particles + bytes_boundary_particles);
 	for (int i = 0; i < T; i++) {
 		VELOCITY[i].x = 0.f;
@@ -203,12 +236,12 @@ int initialize() {
 		VELOCITY[i].z = 0.f;
 	}
 
-	vec3d* d_VELOCITY;
+	
 	gpuErrchk(cudaMalloc((void**)&d_VELOCITY, bytes_fluid_particles + bytes_boundary_particles));
 	gpuErrchk(cudaMemcpy(d_VELOCITY, VELOCITY, bytes_fluid_particles + bytes_boundary_particles, cudaMemcpyHostToDevice));
 
 	//Defining and allocating main st force variable
-	vec3d* ST_FORCE;
+	
 	ST_FORCE = (vec3d*)malloc(bytes_fluid_particles + bytes_boundary_particles);
 	for (int i = 0; i < T; i++) {
 		ST_FORCE[i].x = 0.f;
@@ -216,12 +249,11 @@ int initialize() {
 		ST_FORCE[i].z = 0.f;
 	}
 
-	vec3d* d_ST_FORCE;
+	
 	gpuErrchk(cudaMalloc((void**)&d_ST_FORCE, bytes_fluid_particles + bytes_boundary_particles));
 	gpuErrchk(cudaMemcpy(d_ST_FORCE, ST_FORCE, bytes_fluid_particles + bytes_boundary_particles, cudaMemcpyHostToDevice));
 
 	//Defining and allocating main viscosity force variable
-	vec3d* VISCOSITY_FORCE;
 	VISCOSITY_FORCE = (vec3d*)malloc(bytes_fluid_particles + bytes_boundary_particles);
 	for (int i = 0; i < T; i++) {
 		VISCOSITY_FORCE[i].x = 0.f;
@@ -229,12 +261,10 @@ int initialize() {
 		VISCOSITY_FORCE[i].z = 0.f;
 	}
 
-	vec3d* d_VISCOSITY_FORCE;
 	gpuErrchk(cudaMalloc((void**)&d_VISCOSITY_FORCE, bytes_fluid_particles + bytes_boundary_particles));
 	gpuErrchk(cudaMemcpy(d_VISCOSITY_FORCE, VISCOSITY_FORCE, bytes_fluid_particles + bytes_boundary_particles, cudaMemcpyHostToDevice));
 
 	//Defining and allocating main pressure force variable
-	vec3d* PRESSURE_FORCE;
 	PRESSURE_FORCE = (vec3d*)malloc(bytes_fluid_particles + bytes_boundary_particles);
 	for (int i = 0; i < T; i++) {
 		PRESSURE_FORCE[i].x = 0.f;
@@ -242,34 +272,29 @@ int initialize() {
 		PRESSURE_FORCE[i].z = 0.f;
 	}
 
-	vec3d* d_PRESSURE_FORCE;
 	gpuErrchk(cudaMalloc((void**)&d_PRESSURE_FORCE, bytes_fluid_particles + bytes_boundary_particles));
 	gpuErrchk(cudaMemcpy(d_PRESSURE_FORCE, PRESSURE_FORCE, bytes_fluid_particles + bytes_boundary_particles, cudaMemcpyHostToDevice));
 
 	//Defining and allocating main density array
-	float* DENSITY;
 	DENSITY = (float*)malloc(T * sizeof(float));
 	for (int i = 0; i < T; i++) {
 		DENSITY[i] = rho_0;
 	}
 
-	float* d_DENSITY;
 	gpuErrchk(cudaMalloc((void**)&d_DENSITY, T * sizeof(float)));
 	gpuErrchk(cudaMemcpy(d_DENSITY, DENSITY, T * sizeof(float), cudaMemcpyHostToDevice));
 
 	//Defining and allocating main pressure array
-	float* PRESSURE;
 	PRESSURE = (float*)malloc(T * sizeof(float));
 	for (int i = 0; i < T; i++) {
 		PRESSURE[i] = 0;
 	}
 
-	float* d_PRESSURE;
 	gpuErrchk(cudaMalloc((void**)&d_PRESSURE, T * sizeof(float)));
 	gpuErrchk(cudaMemcpy(d_PRESSURE, PRESSURE, T * sizeof(float), cudaMemcpyHostToDevice));
 
 	//Defining and allocating main mass array
-	float* MASS;
+	
 	MASS = (float*)malloc(T * sizeof(float));
 	for (int i = 0; i < N; i++) {
 		MASS[i] = MASS_calc;
@@ -279,22 +304,20 @@ int initialize() {
 		MASS[i] = boundary_mass[i - N];
 	}
 
-	float* d_MASS;
+	
 	gpuErrchk(cudaMalloc((void**)&d_MASS, T * sizeof(float)));
 	gpuErrchk(cudaMemcpy(d_MASS, MASS, T * sizeof(float), cudaMemcpyHostToDevice));
 
 	//Defining and allocating main type array (0 if fluid, 1 if boundary)
-	int* TYPE;
 	TYPE = (int*)malloc(T * sizeof(int));
 	for (int i = 0; i < N; i++) {
 		TYPE[i] = 0;
 	}
 
 	for (int i = N; i < T; i++) {
-		TYPE[i - N] = 1;
+		TYPE[i] = 1;
 	}
 
-	int* d_TYPE;
 	gpuErrchk(cudaMalloc((void**)&d_TYPE, T * sizeof(int)));
 	gpuErrchk(cudaMemcpy(d_TYPE, TYPE, T * sizeof(int), cudaMemcpyHostToDevice));
 
@@ -310,6 +333,25 @@ int initialize() {
 	strcpy(vtu_fullpath, VTU_Writer(vtu_path, iteration, FLUID_POSITIONS, N, pointData, vectorData, pointDataNames, vectorDataNames, size_pointData, size_vectorData, vtu_fullpath));
 
 	VTK_Group(vtk_group_path, vtu_fullpath, simulation_time);
+
+	// Initialize main hashtable
+
+	hashtable_size = nextPrime(2 * T) + 1;
+
+	hashtable = new int[hashtable_size * particles_per_row];
+	for (int i = 0; i < hashtable_size; ++i) {
+		for (int j = 0; j < particles_per_row; j++) {
+			hashtable[i * particles_per_row + j] = -1;
+		}
+	}
+
+	Hash hash(hashtable_size);
+
+	gpuErrchk(cudaMallocPitch(&d_hashtable, &pitch, particles_per_row * sizeof(int), hashtable_size));
+	gpuErrchk(cudaMemcpy2D(d_hashtable, pitch, hashtable, particles_per_row * sizeof(int), particles_per_row * sizeof(int), hashtable_size, cudaMemcpyHostToDevice));
+
+	grid_size = B / block_size + 1;
+	hashParticlePositions << <grid_size, block_size >> > (d_hashtable, POSITION, invh, hash, B, pitch, particles_per_row);
 
 	std::cout << "Initializing with " << N << " fluid particles and " << B << " boundary particles.\n"
 		<< "Total of " << T << " particles.\n"

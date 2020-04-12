@@ -2,7 +2,6 @@
 #include "device_functions.cuh"
 #include "hashing.cuh"
 #include "kernels.cuh"
-#include "global_variables.cuh"
 #include "common.cuh"
 
 __global__ void boundaryPsi(float* psi, int* d_hashtable, const float rho_0, vec3d* points, float h,float invh, int Ncols, size_t pitch, Hash hash, int size) {
