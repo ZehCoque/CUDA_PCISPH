@@ -29,6 +29,8 @@ int* d_TYPE;
 int* hashtable;
 int* d_hashtable;
 const vec3d gravity;
+int iteration = 1;
+float simulation_time = 0;
 
 const float rho_0 = 1000.f;
 const float PARTICLE_RADIUS = 0.01f;
@@ -189,8 +191,7 @@ int initialize() {
 	std::string boundary_vectorDataNames[1] = {  };
 
 	char vtu_fullpath[1024];
-	int iteration = 1;
-	float simulation_time = 0;
+
 	VTU_Writer(main_path, iteration, BOUNDARY_POSITIONS, B, boundary_point_data, boundary_vectorData, boundary_pointDataNames, boundary_vectorDataNames, size_pointData, size_vectorData, vtu_fullpath, 1);
 
 	//gpuErrchk(cudaMemcpy2D(hashtable, particles_per_row * sizeof(int), d_hashtable, pitch, width, height, cudaMemcpyDeviceToHost));

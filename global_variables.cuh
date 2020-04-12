@@ -6,6 +6,8 @@
 
 extern const float rho_0;
 extern const vec3d gravity;
+extern int iteration;
+extern float simulation_time;
 
 // Initial conditions
 extern const float PARTICLE_RADIUS;
