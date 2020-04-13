@@ -9,7 +9,12 @@ int main(void)
 {
 	initialize();
 
-	mainLoop();
+	while (simulation_time < final_time)
+	{
+		mainLoop();
+		simulation_time = final_time;
+	}
+	
 
 	cudaDeviceReset();
 

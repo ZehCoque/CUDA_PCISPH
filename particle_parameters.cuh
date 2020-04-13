@@ -34,3 +34,298 @@ __global__ void boundaryPsi(float* psi, int* d_hashtable, const float rho_0, vec
 	return;
 
 }
+
+__global__ void boundaryNormal(vec3d* normal,vec3d* points,vec3d b_initial, vec3d b_final,int size) {
+
+	int index = getGlobalIdx_1D_1D();
+
+	if (index >= size) {
+		return;
+	}
+
+	vec3d point = points[index];
+
+	normal[index].x = 0.f;
+	normal[index].y = 0.f;
+	normal[index].z = 0.f;
+
+
+	if (point.x == b_initial.x) {
+		normal[index].x = 1.f;
+
+		if (point.y == b_initial.y) {
+			normal[index].y = 1.f;
+
+			if (point.z == b_initial.z) {
+				normal[index].z = 1.f;
+			}
+			else if (point.z == b_final.z) {
+				normal[index].z = -1.f;
+			}
+		}
+		else if (point.y == b_final.y) {
+			normal[index].y = -1.f;
+
+			if (point.z == b_initial.z) {
+				normal[index].z = 1.f;
+			}
+			else if (point.z == b_final.z) {
+				normal[index].z = -1.f;
+			}
+		}
+		else if (point.z == b_initial.z) {
+			normal[index].z = 1.f;
+
+			if (point.y == b_initial.y) {
+				normal[index].y = 1.f;
+			}
+			else if (point.y == b_final.y) {
+				normal[index].y = -1.f;
+			}
+
+		} 
+		else if (point.z == b_final.y) {
+			normal[index].z = -1.f;
+
+			if (point.y == b_initial.y) {
+				normal[index].y = 1.f;
+			}
+			else if (point.y == b_final.y) {
+				normal[index].y = -1.f;
+			}
+		}
+		return;
+	}
+
+	if (point.y == b_initial.y) {
+		normal[index].y = 1.f;
+
+		if (point.x == b_initial.x) {
+			normal[index].x = 1.f;
+
+			if (point.z == b_initial.z) {
+				normal[index].z = 1.f;
+			}
+			else if (point.z == b_final.z) {
+				normal[index].z = -1.f;
+			}
+
+		}
+		else if (point.z == b_initial.z) {
+			normal[index].z = 1.f;
+
+			if (point.x == b_initial.x) {
+				normal[index].x = 1.f;
+			}
+			else if (point.x == b_final.x) {
+				normal[index].x = -1.f;
+			}
+		}
+		else if (point.x == b_final.x) {
+			normal[index].x = -1.f;
+
+			if (point.z == b_initial.z) {
+				normal[index].z = 1.f;
+			}
+			else if (point.z == b_final.z) {
+				normal[index].z = -1.f;
+			}
+		}
+		else if (point.z == b_final.z) {
+			normal[index].z = -1.f;
+
+			if (point.x == b_initial.x) {
+				normal[index].x = 1.f;
+			}
+			else if (point.x == b_final.x) {
+				normal[index].x = -1.f;
+			}
+		}
+		return;
+	}
+
+	if (point.z == b_initial.z) {
+		normal[index].z = 1.f;
+
+		if (point.x == b_initial.x) {
+			normal[index].x = 1.f;
+
+			if (point.y == b_initial.y) {
+				normal[index].y = 1.f;
+			}
+			else if (point.y == b_final.y) {
+				normal[index].y = -1.f;
+			}
+		}
+		else if (point.y == b_initial.y) {
+			normal[index].y = 1.f;
+
+			if (point.x == b_initial.x) {
+				normal[index].x = 1.f;
+			}
+			else if (point.x == b_final.x) {
+				normal[index].x = -1.f;
+			}
+		}
+		else if (point.x == b_final.x) {
+			normal[index].x = -1.f;
+
+			if (point.y == b_initial.y) {
+				normal[index].y = 1.f;
+			}
+			else if (point.y == b_final.y) {
+				normal[index].y = -1.f;
+			}
+		}
+		else if (point.y == b_final.y) {
+			normal[index].y = -1.f;
+
+			if (point.x == b_initial.x) {
+				normal[index].x = 1.f;
+			}
+			else if (point.x == b_final.x) {
+				normal[index].x = -1.f;
+			}
+		}
+		return;
+	}
+
+	if (point.x == b_final.x) {
+		normal[index].x = -1.f;
+		if (point.y == b_initial.y) {
+			normal[index].y = 1.f;
+
+			if (point.z == b_initial.z) {
+				normal[index].z = 1.f;
+			}
+			else if (point.z == b_final.z) {
+				normal[index].z = -1.f;
+			}
+		}
+		else if (point.z == b_initial.z) {
+			normal[index].z = 1.f;
+
+			if (point.y == b_initial.y) {
+				normal[index].y = 1.f;
+			}
+			else if (point.y == b_final.y) {
+				normal[index].y = -1.f;
+			}
+		}
+		else if (point.y == b_final.y) {
+			normal[index].y = -1.f;
+
+			if (point.z == b_initial.z) {
+				normal[index].z = 1.f;
+			}
+			else if (point.z == b_final.z) {
+				normal[index].z = -1.f;
+			}
+		}
+		else if (point.z == b_final.z) {
+			normal[index].z = -1.f;
+
+			if (point.y == b_initial.y) {
+				normal[index].y = 1.f;
+			}
+			else if (point.y == b_final.y) {
+				normal[index].y = -1.f;
+			}
+		}
+		return;
+	}
+
+	if (point.y == b_final.y) {
+		normal[index].y = -1.f;
+
+		if (point.x == b_initial.x) {
+			normal[index].x = 1.f;
+
+			if (point.z == b_initial.z) {
+				normal[index].z = 1.f;
+			}
+			else if (point.z == b_final.z) {
+				normal[index].z = -1.f;
+			}
+		}
+		else if (point.z == b_initial.z) {
+			normal[index].z = 1.f;
+
+			if (point.x == b_initial.x) {
+				normal[index].x = 1.f;
+			}
+			else if (point.x == b_final.x) {
+				normal[index].x = -1.f;
+			}
+		}
+		else if (point.x == b_final.x) {
+			normal[index].x = -1.f;
+
+			if (point.z == b_initial.z) {
+				normal[index].z = 1.f;
+			}
+			else if (point.z == b_final.z) {
+				normal[index].z = -1.f;
+			}
+		}
+		else if (point.z == b_final.z) {
+			normal[index].z = -1.f;
+
+			if (point.x == b_initial.x) {
+				normal[index].x = 1.f;
+			}
+			else if (point.x == b_final.x) {
+				normal[index].x = -1.f;
+			}
+		}
+		return;
+	}
+
+	if (point.z == b_final.z) {
+		normal[index].z = -1.f;
+		if (point.x == b_initial.x) {
+			normal[index].x = 1.f;
+
+			if (point.y == b_initial.y) {
+				normal[index].y = 1.f;
+			}
+			else if (point.y == b_final.y) {
+				normal[index].y = -1.f;
+			}
+		}
+		else if (point.y == b_initial.y) {
+			normal[index].y = 1.f;
+
+			if (point.x == b_initial.x) {
+				normal[index].x = 1.f;
+			}
+			else if (point.x == b_final.x ){
+				normal[index].x = -1.f;
+			}
+		}
+		else if (point.x == b_final.x) {
+			normal[index].x = -1.f;
+
+			if (point.y == b_initial.y) {
+				normal[index].y = 1.f;
+			}
+			else if (point.y == b_final.y) {
+				normal[index].y = -1.f;
+			}
+		}
+		else if (point.y == b_final.y) {
+			normal[index].y = -1.f;
+
+			if (point.x == b_initial.x) {
+				normal[index].x = 1.f;
+			}
+			else if (point.x == b_final.x) {
+				normal[index].x = -1.f;
+			}
+		}
+		return;
+	}
+
+
+
+}
