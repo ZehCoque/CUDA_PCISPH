@@ -84,19 +84,18 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <CudaCompile Include="CUDA_PCISPH.cu" />
-    <CudaCompile Include="initialization.cu" />
-    <CudaCompile Include="main_loop.cu" />
+    <CudaCompile Include="main_functions.cu" />
     <CudaCompile Include="utilities.cu" />
     <CudaCompile Include="VTK.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.cuh" />
     <ClInclude Include="device_functions.cuh" />
+    <ClInclude Include="forces.cuh" />
     <ClInclude Include="global_variables.cuh" />
     <ClInclude Include="hashing.cuh" />
-    <ClInclude Include="initialize.cuh" />
+    <ClInclude Include="helper.cuh" />
     <ClInclude Include="kernels.cuh" />
-    <ClInclude Include="main.cuh" />
     <ClInclude Include="particle_parameters.cuh" />
     <ClInclude Include="particle_positions.cuh" />
     <ClInclude Include="resource.h" />

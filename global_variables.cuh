@@ -6,7 +6,9 @@
 
 //global variables for physical constants
 extern const float rho_0;
-extern const vec3d gravity;
+extern const float visc_const;
+extern const float st_const;
+extern vec3d gravity;
 
 //global variables for time and iteration number tracking
 extern int iteration;
@@ -22,21 +24,39 @@ extern const float F_FINAL_POSITION[3];
 extern const float B_INITIAL_POSITION[3];
 extern const float B_FINAL_POSITION[3];
 
-//gloval variables for CUDA
+//global variables for CUDA
 extern int block_size;
 
-//global variables fopr initialization
+//variables for hashtable
+extern size_t pitch;
+extern const int particles_per_row;
+extern int hashtable_size;
+extern const int n_p_neighbors;
 
+//number of particles
+extern int N; //fluid particles
+extern int B; //bondary particles
+extern int T; //total particles
+
+//simulation parameters
+extern float h;
+extern float invh;
+
+//global variables fopr initialization
 extern char main_path[1024];
 extern char vtk_group_path[1024];
+extern char vtu_fullpath[1024];
+extern char vtu_path[1024];
+extern float** pointData[2];
+extern int size_pointData;
+extern vec3d** vectorData[4];
+extern int size_vectorData;
+extern std::string pointDataNames[2];
+extern std::string vectorDataNames[4];
 extern vec3d* POSITION;
 extern vec3d* d_POSITION;
 extern vec3d* VELOCITY;
 extern vec3d* d_VELOCITY;
-extern vec3d* ST_FORCE;
-extern vec3d* d_ST_FORCE;
-extern vec3d* VISCOSITY_FORCE;
-extern vec3d* d_VISCOSITY_FORCE;
 extern vec3d* PRESSURE_FORCE;
 extern vec3d* d_PRESSURE_FORCE;
 extern vec3d* NORMAL;

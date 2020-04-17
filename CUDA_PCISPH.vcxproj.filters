@@ -10,10 +10,7 @@
     <CudaCompile Include="VTK.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
-    <CudaCompile Include="initialization.cu">
-      <Filter>Source Files</Filter>
-    </CudaCompile>
-    <CudaCompile Include="main_loop.cu">
+    <CudaCompile Include="main_functions.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
   </ItemGroup>
@@ -48,10 +45,10 @@
     <ClInclude Include="global_variables.cuh">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="initialize.cuh">
+    <ClInclude Include="helper.cuh">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="main.cuh">
+    <ClInclude Include="forces.cuh">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

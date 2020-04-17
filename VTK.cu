@@ -1,10 +1,10 @@
 #include "VTK.cuh"
 #include "utilities.cuh"
 
-char* VTU_Writer(char path[], int iteration, vec3d* points, int numberOfPoints, float** pointData[], vec3d** vectorData[], std::string pointDataNames[], std::string vectorDataNames[], int size_pointData, int size_vectorData, char* fullpath, int type)
+void VTU_Writer(char path[], int iteration, vec3d* points, int numberOfPoints, float** pointData[], vec3d** vectorData[], std::string pointDataNames[], std::string vectorDataNames[], int size_pointData, int size_vectorData, char* fullpath, int type)
 {
 	if (type == 0) {
-		char buffer[33];
+		char buffer[1024];
 		itoa(iteration, buffer, 10);
 		strcpy(fullpath, path);
 		strcat(fullpath, "/iter");
@@ -14,7 +14,7 @@ char* VTU_Writer(char path[], int iteration, vec3d* points, int numberOfPoints, 
 	else if (type == 1) {
 		strcpy(fullpath, path);
 		strcat(fullpath, "/boundary.vtu");
-	}
+	} 
 
 	std::ofstream vtu_file;
 	vtu_file.open(fullpath);
@@ -82,7 +82,7 @@ char* VTU_Writer(char path[], int iteration, vec3d* points, int numberOfPoints, 
 		<< "</UnstructuredGrid>\n"
 		<< "</VTKFile>";
 	vtu_file.close();
-	return fullpath;
+	return;
 }
 
 void VTK_Group(char vtk_group_path[], char vtu_path[], float time) {
