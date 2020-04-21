@@ -6,7 +6,7 @@
 #include "helper.cuh"
 #include "forces.cuh"
 
-__global__ void boundaryPsi(float* psi, int* d_hashtable, const float rho_0, vec3d* points, float h,float invh, int Ncols, size_t pitch, Hash hash, int size, const int n_p_neighbors) {
+__global__ void boundaryPsi(float* psi, int* d_hashtable, const float rho_0, vec3d* points, float h,float invh, int Ncols, size_t pitch, Hash hash, int size) {
 	
 	int index = getGlobalIdx_1D_1D();
 
@@ -14,25 +14,59 @@ __global__ void boundaryPsi(float* psi, int* d_hashtable, const float rho_0, vec
 		return;
 	}
 
-	int* possible_neighbors = new int[n_p_neighbors];
-	possible_neighbors[n_p_neighbors - 1] = 80000;
-	printf("%d\n", possible_neighbors[n_p_neighbors - 1]);
-	hash.getPossibleNeighbors(possible_neighbors,d_hashtable, points[index], h, invh, Ncols, pitch, n_p_neighbors);
-	
 	psi[index] = 0.f;
-	for (int i = 0; i < n_p_neighbors; i++) {
-		if (possible_neighbors[i] != -1) {
-			//printf("%d\n", index);
-			//printf("%d %g %g %g %d %g %g %g\n", 
-				//index, points[index].x, points[index].y, points[index].z, possible_neighbors[i],points[possible_neighbors[i]].x, points[possible_neighbors[i]].y, points[possible_neighbors[i]].z);
-			float r = distance(points[index], points[possible_neighbors[i]]);
-			if (r <= h) {
-				psi[index] += Poly6_Kernel(r, h,invh);
+	int hash_list[27];
+	bool skip = false;
+	int count = 0;
+	for (int i = -1; i < 2; i++) {
+		for (int j = -1; j < 2; j++) {
+			for (int k = -1; k < 2; k++) {
+				vec3d BB;
+				BB.x = points[index].x + i * h;
+				BB.y = points[index].y + j * h;
+				BB.z = points[index].z + k * h;
+
+				int hash_index = hash.hashFunction(BB, invh);
+				hash_list[count] = hash_index;
+				skip = false;
+				for (int t = 0; t < count; t++) {
+					if (hash_index == hash_list[t]) {
+						skip = true;
+					}
+				}
+				count = count + 1;
+				if (hash_index >= 0 && skip == false) {
+					int* row = (int*)((char*)d_hashtable + hash_index * pitch);
+					for (int t = 0; t < Ncols; t++) {
+						/*int* element = (int*)((char*)d_hashtable + hash_index * pitch + t * sizeof(int));*/
+						//printf("%d\n",element[0]);
+						if (row[t] != -1) {
+							//printf("%g %g %g %d %d %d %d %g %g %g\n", points[index].x, points[index].y, points[index].z,i,j,k,hash_index, points[row[t]].x, points[row[t]].y, points[row[t]].z);
+							float r = distance(points[index], points[row[t]]);
+							if (r <= h) {
+								psi[index] += Poly6_Kernel(r, h, invh);
+							}
+						}
+					}
+				}
 			}
-				
 		}
 	}
-	//printf("%d %g\n", index, psi[index]);
+	
+	
+	//for (int i = 0; i < 5000; i++) {
+	//	if (possible_neighbors[i] != -1) {
+	//		//printf("%d\n", index);
+	//		//printf("%d %g %g %g %d %g %g %g\n", 
+	//			//index, points[index].x, points[index].y, points[index].z, possible_neighbors[i],points[possible_neighbors[i]].x, points[possible_neighbors[i]].y, points[possible_neighbors[i]].z);
+	//		float r = distance(points[index], points[possible_neighbors[i]]);
+	//		if (r <= h) {
+	//			psi[index] += Poly6_Kernel(r, h,invh);
+	//		}
+	//			
+	//	}
+	//}
+	////printf("%d %g\n", index, psi[index]);
 	psi[index] = rho_0 / psi[index];
 	
 	return;
@@ -334,7 +368,7 @@ __global__ void boundaryNormal(vec3d* normal,vec3d* points,vec3d b_initial, vec3
 
 }
 
-__global__ void fluidNormal(vec3d* normal, vec3d* points, float* mass, float* density, float h, float invh, Hash hash, int* d_hashtable, int Ncols,size_t pitch, int size,const int n_p_neighbors) {
+__global__ void fluidNormal(vec3d* normal, vec3d* points, float* mass, float* density, float h, float invh, Hash hash, int* d_hashtable, int Ncols,size_t pitch, int size) {
 
 	int index = getGlobalIdx_1D_1D();
 	
@@ -342,80 +376,132 @@ __global__ void fluidNormal(vec3d* normal, vec3d* points, float* mass, float* de
 		return;
 	}
 	
-	vec3d point = points[index];
-
-	int* possible_neighbors = new int[n_p_neighbors];
-	
-	hash.getPossibleNeighbors(possible_neighbors, d_hashtable, point, h, invh, Ncols, pitch, n_p_neighbors);
-	
 	assignToVec3d(&normal[index]);
 	
-	for (int i = 0; i < n_p_neighbors; i++) {
-		if (possible_neighbors[i] != -1) {
-			float r = distance(points[index], points[possible_neighbors[i]]);
-			if (r <= h) {
-				int i = index;
-				int j = possible_neighbors[i];
+	int hash_list[27];
+	bool skip = false;
+	int count = 0;
+	for (int i = -1; i < 2; i++) {
+		for (int j = -1; j < 2; j++) {
+			for (int k = -1; k < 2; k++) {
+				vec3d BB;
+				BB.x = points[index].x + i * h;
+				BB.y = points[index].y + j * h;
+				BB.z = points[index].z + k * h;
 
-				vec3d poly6_gradient = Poly6_Gradient(i, j, points, r, h, invh);
-				float tmp = h * mass[j] / density[j];
-				normal[index].x += tmp * poly6_gradient.x;
-				normal[index].y += tmp * poly6_gradient.y;
-				normal[index].z += tmp * poly6_gradient.z;
+				int hash_index = hash.hashFunction(BB, invh);
+				hash_list[count] = hash_index;
+				skip = false;
+				for (int t = 0; t < count; t++) {
+					if (hash_index == hash_list[t]) {
+						skip = true;
+					}
+				}
+				count = count + 1;
+				if (hash_index >= 0 && skip == false) {
+					int* row = (int*)((char*)d_hashtable + hash_index * pitch);
+					for (int t = 0; t < Ncols; t++) {
+						/*int* element = (int*)((char*)d_hashtable + hash_index * pitch + t * sizeof(int));*/
+						//printf("%d\n",element[0]);
+						if (row[t] != -1) {
+							//printf("%g %g %g %d %d %d %d %g %g %g\n", points[index].x, points[index].y, points[index].z,i,j,k,hash_index, points[row[t]].x, points[row[t]].y, points[row[t]].z);
+							float r = distance(points[index], points[row[t]]);
+							if (r <= h) {
+
+								vec3d poly6_gradient = Poly6_Gradient(index, row[t], points, r, h, invh);
+								float tmp = h * mass[row[t]] / density[row[t]];
+								normal[index].x += tmp * poly6_gradient.x;
+								normal[index].y += tmp * poly6_gradient.y;
+								normal[index].z += tmp * poly6_gradient.z;
+							}
+						}
+					}
+				}
 			}
 		}
 	}
+
 	//printf("%d\n", index);
 	return;
 }
 
-__global__ void nonPressureForces(vec3d* points,vec3d* viscosity_force, vec3d* st_force,float* mass,float* density, vec3d* velocity,vec3d* normal, vec3d gravity,const float h,const float invh, const float rho_0,const float visc_const, const float st_const,const int Ncols,size_t pitch,int* d_hashtable,Hash hash, int size, int n_p_neighbors) {
+__global__ void nonPressureForces(vec3d* points,vec3d* viscosity_force, vec3d* st_force,float* mass,float* density, vec3d* velocity,vec3d* normal, vec3d gravity,const float h,const float invh, const float rho_0,const float visc_const, const float st_const,const int Ncols,size_t pitch,int* d_hashtable,Hash hash, int size) {
 
 	int index = getGlobalIdx_1D_1D();
-
-	printf("%d\n", index);
 
 	if (index >= size) {
 		return;
 	}
 
-	
-	vec3d point = points[index];
-
-	int* possible_neighbors = new int[n_p_neighbors];
-	hash.getPossibleNeighbors(possible_neighbors, d_hashtable, point, h, invh, Ncols, pitch, n_p_neighbors);
-
 	//reseting vec3d valus to 0
-	assignToVec3d(&viscosity_force[index]);
-	assignToVec3d(&st_force[index]);
+	//assignToVec3d(&viscosity_force[index]);
+	//assignToVec3d(&st_force[index]);
 
-	//Calculating forces
-	for (int i = 0; i < n_p_neighbors; i++) {
-		if (possible_neighbors[i] != -1) {
-			float r = distance(points[index], points[possible_neighbors[i]]);
-			if (r <= h && r > 0) {
-				int i = index;
-				int j = possible_neighbors[i];
+	viscosity_force[index].x = 0.f;
+	viscosity_force[index].y = 0.f;
+	viscosity_force[index].z = 0.f;
+	st_force[index].x = 0.f;
+	st_force[index].y = 0.f;
+	st_force[index].z = 0.f;
 
-				//Viscosity calculation
-				float visc_laplacian = Viscosity_Laplacian(r, h, invh);
-				vec3d visc = Viscosity(i, j, mass, density, velocity, visc_const, visc_laplacian);
+	vec3d BB;
+	vec3d visc;
+	vec3d st;
 
-				//summation of calcualted value to main array
-				sum2Vec3d(&viscosity_force[index], &visc);
-
-				//Surface tension calculation
-				float st_kernel = ST_Kernel(r,h,invh);
-				vec3d st = ST(i, j, r, points, mass, density, normal, st_const, rho_0, st_kernel);
-
-				//summation of calcualted value to main array
+	int hash_list[27];
+	bool skip = false;
+	int count = 0;
+	for (int i = -1; i < 2; i++) {
+		for (int j = -1; j < 2; j++) {
+			for (int k = -1; k < 2; k++) {
 				
-				sum2Vec3d(&st_force[index], &st);
-				
+				BB.x = points[index].x + i * h;
+				BB.y = points[index].y + j * h;
+				BB.z = points[index].z + k * h;
+
+				int hash_index = hash.hashFunction(BB, invh);
+				hash_list[count] = hash_index;
+				skip = false;
+				for (int t = 0; t < count; t++) {
+					if (hash_index == hash_list[t]) {
+						skip = true;
+					}
+				}
+				count = count + 1;
+				if (hash_index >= 0 && skip == false) {
+					int* row = (int*)((char*)d_hashtable + hash_index * pitch);
+					for (int t = 0; t < Ncols; t++) {
+						if (row[t] != -1) {
+							//printf("%g %g %g %d %d %d %d %g %g %g\n", points[index].x, points[index].y, points[index].z,i,j,k,hash_index, points[row[t]].x, points[row[t]].y, points[row[t]].z);
+							float r = distance(points[index], points[row[t]]);
+							if (r <= h && r > 0) {
+
+								//Viscosity calculation
+								visc = Viscosity(index, row[t], mass, density, velocity, visc_const, Viscosity_Laplacian(r, h, invh));
+
+								//summation of calcualted value to main array
+								viscosity_force[index].x += visc.x;
+								viscosity_force[index].y += visc.y;
+								viscosity_force[index].z += visc.z;
+
+								//Surface tension calculation
+								vec3d st = ST(index, row[t], r, points, mass, density, normal, st_const, rho_0, ST_Kernel(r, h, invh));
+
+								//summation of calcualted value to main array
+								st_force[index].x += st.x;
+								st_force[index].y += st.y;
+								st_force[index].z += st.z;
+
+								
+								//printf("[%g %g %g] -> [%g %g %g]\n", st.x,st.y,st.z, st_force[index].x, st_force[index].y, st_force[index].z);
+							}
+						}
+					}
+				}
 			}
 		}
 	}
-
+	//printf("[%g %g %g]\n", st_force[index].x, st_force[index].y, st_force[index].z);
 	//printf("visc = [%.6f %.6f %.6f] st = [%.6f %.6f %.6f]\n", viscosity_force[index].x, viscosity_force[index].y, viscosity_force[index].z, st_force[index].x, st_force[index].y, st_force[index].z);
 	return;
 }

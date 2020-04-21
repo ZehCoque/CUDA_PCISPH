@@ -2,6 +2,7 @@
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include "device_functions.cuh"
+#include "helper.cuh"
 #include "common.cuh"
 
 bool isPrime(int n)
@@ -61,7 +62,7 @@ public:
 
     __device__ int hashFunction(vec3d,float);
     
-    __device__ void getPossibleNeighbors(int*,int*, vec3d, float, float,int, size_t, int);
+    __device__ void getPossibleNeighbors(int*,int*, vec3d, float, float,int, size_t);
 
 };
 
@@ -75,7 +76,7 @@ Hash::Hash(int b)
 __device__ int Hash::hashFunction(vec3d point,float invh) {
 
     int r_x,r_y,r_z;
-
+    
     r_x = static_cast<int>(floor(point.x * invh)) * this->p1;
     r_y = static_cast<int>(floor(point.y * invh)) * this->p2;
     r_z = static_cast<int>(floor(point.z * invh)) * this->p3;
@@ -97,44 +98,47 @@ __device__ void Hash::insertItem(int* hashtable, vec3d point, int point_id, floa
     }
 }
 
-__device__ void Hash::getPossibleNeighbors(int* possible_neighbors,int* hashtable, vec3d point,float h,float invh,int Ncols,size_t pitch,int n_p_neighbors) {
-    
+__device__ void Hash::getPossibleNeighbors(int* possible_neighbors,int* hashtable, vec3d point,float h,float invh,int Ncols,size_t pitch) {
+  
     vec3d BB;
     int count = 0;
-    for (int i = 0; i < n_p_neighbors; i++) {
+    for (int i = 0; i < 5000; i++) {
         possible_neighbors[i] = -1;
     }
-
+    
     for (int i = -1; i < 2; i++) {
         for (int j = -1; j < 2; j++) {
             for (int k = -1; k < 2; k++) {
                 BB.x = point.x + i * h;
                 BB.y = point.y + j * h;
                 BB.z = point.z + k * h;
+
                 int hash_index = hashFunction(BB, invh);
+
                 if (hash_index >= 0) {
                     /*printf("%d\n", hash_index);*/
                     int* row_a = (int*)((char*)hashtable + hash_index * pitch);
                     for (int t = 0; t < Ncols; t++) {
+                        
                         if (row_a[t] != -1) {
                             possible_neighbors[count] = row_a[t];
-                            count++;
-                            //printf("%d\n", count);
+                           /* atomicAdd(&count,1);*/
+                            printf("%d\n", count);
+                            //printf("%g %g %g %g %g %g %d %d %d\n",point.x,point.y,point.z,BB.x,BB.y,BB.z,hash_index,row_a[t],count);
                         }
                     }
-                    
                 }
             }
         }
     } 
 
     //printf("point [%g %g %g] has %d neighbors\n", point.x,point.y,point.z,count);
-
+    //printf("%g %g %g %d\n",point.x,point.y,point.z,count);
     int repeated = 0;
-    for (int t = 0; t < n_p_neighbors; t++) {
+    for (int t = 0; t < 5000; t++) {
         int check_value = possible_neighbors[t];
         if (check_value != -1) {
-            for (int g = t + 1; g < n_p_neighbors; g++) {
+            for (int g = t + 1; g < 5000; g++) {
                 if (possible_neighbors[g] == check_value) {
                     possible_neighbors[g] = -1;
                     repeated++;

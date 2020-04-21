@@ -10,7 +10,7 @@ void multiprocessor_writer();
 int main(void)
 {
 	int init = initialize();
-
+	//system("CLS");
 	if (init != 0) {
 		printf("\n\nINITIALIZATION ERROR\n\n");
 		return 1;

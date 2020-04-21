@@ -4,6 +4,7 @@
 #include "hashing.cuh"
 #include "particle_parameters.cuh"
 #include "global_variables.cuh"
+#include <math.h>
 #include <future> 
 #include <chrono>
 
@@ -13,9 +14,9 @@ char vtk_group_path[1024];
 char vtu_fullpath[1024];
 char vtu_path[1024];
 float** pointData[2];
-vec3d** vectorData[4];
+vec3d** vectorData[5];
 std::string pointDataNames[2];
-std::string vectorDataNames[4];
+std::string vectorDataNames[5];
 int size_pointData;
 int size_vectorData;
 
@@ -44,13 +45,13 @@ int* d_hashtable;
 vec3d gravity;
 
 //initial conditions
-const float PARTICLE_RADIUS = 0.01f;
+const float PARTICLE_RADIUS = 0.011f;
 const float MASS_calc = (float)M_PI * -pow(PARTICLE_RADIUS, 3.f) / 3.f * 4.f;
 const float PARTICLE_DIAMETER = 2 * PARTICLE_RADIUS;
-const float F_INITIAL_POSITION[3] = { -0.5f,-0.5f,-0.5f }; //Fluid particles initial position
-const float F_FINAL_POSITION[3] = { 0.5f,0.5f,0.5f }; //Fluid particles final position
-const float B_INITIAL_POSITION[3] = { -0.5f,-0.5f,-0.5f }; //Boundary particles final position
-const float B_FINAL_POSITION[3] = { 0.5f,0.5f,0.5f }; //Boundary particles final position
+const float F_INITIAL_POSITION[3] = { 0.f,0.f,0.f }; //Fluid particles initial position
+const float F_FINAL_POSITION[3] = { 0.5f,1.f,0.5f }; //Fluid particles final position
+const float B_INITIAL_POSITION[3] = { 0.f,0.f,0.f }; //Boundary particles final position
+const float B_FINAL_POSITION[3] = { 1.f,1.f,1.f }; //Boundary particles final position
 
 //physical constants
 const float rho_0 = 1000.f;
@@ -71,7 +72,7 @@ int T; //total particles
 size_t pitch;
 const int particles_per_row = 200;
 int hashtable_size;
-const int n_p_neighbors = 8000; //in case of memory failure, raise this number
+//const int n_p_neighbors = 8000; //in case of memory failure, raise this number
 
 //simulation parameters
 float invh;
@@ -82,9 +83,9 @@ int block_size = 1024;
 int grid_size;
 
 int initialize() {
-	
+
 	// get main path of simulation
-	
+
 	getMainPath(main_path);
 
 	// write path for vtu files
@@ -92,7 +93,7 @@ int initialize() {
 	strcat(vtu_path, "/vtu");
 
 	// write path for vtk group file
-	
+
 	strcpy(vtk_group_path, main_path);
 	strcat(vtk_group_path, "/PCISPH.pvd");
 
@@ -124,6 +125,7 @@ int initialize() {
 	int SIM_SIZE = N * SIMULATION_DIMENSION;
 	const int x = 40; // Number of particles inside the smoothing length
 	h = powf(3.f * VOLUME * x / (4.f * (float)M_PI * N), 1.f / 3.f);
+	//h = 0.02;
 	invh = 1 / h;
 
 	//const float boundary_radius = h/4;
@@ -153,9 +155,13 @@ int initialize() {
 	//generate locations for each particle
 	makePrism << <grid_size, block_size >> > (D_FLUID_POSITIONS, PARTICLE_DIAMETER, f_initial, D_NPD, N);
 
+	float BOUNDARY_DIAMETER = h/2;
+	float BOUNDARY_RADIUS = h/4;
+
 	// Get number per dimension (NPD) of BOUNDARY particles without compact packing (assuming use of makebox function)
 	for (int i = 0; i < 3; i++) {
-		NPD[i] = static_cast<int>(ceil((B_FINAL_POSITION[i] - B_INITIAL_POSITION[i]) / PARTICLE_DIAMETER)) + 2;
+		NPD[i] = static_cast<int>(ceil((B_FINAL_POSITION[i] - B_INITIAL_POSITION[i]) / BOUNDARY_DIAMETER)) + 2;
+
 	}
 
 	//copy new NPD to device memory
@@ -165,13 +171,15 @@ int initialize() {
 	SIM_SIZE = NPD[0] * NPD[1] * NPD[2] * SIMULATION_DIMENSION;
 
 	vec3d b_initial;
-	b_initial.x = B_INITIAL_POSITION[0] - PARTICLE_RADIUS;
-	b_initial.y = B_INITIAL_POSITION[1] - PARTICLE_RADIUS;
-	b_initial.z = B_INITIAL_POSITION[2] - PARTICLE_RADIUS;
+	b_initial.x = B_INITIAL_POSITION[0] - BOUNDARY_RADIUS;
+	b_initial.y = B_INITIAL_POSITION[1] - BOUNDARY_RADIUS;
+	b_initial.z = B_INITIAL_POSITION[2] - BOUNDARY_RADIUS;
 	vec3d b_final;
-	b_final.x = b_initial.x + PARTICLE_DIAMETER * (NPD[0] - 1);
-	b_final.y = b_initial.y + PARTICLE_DIAMETER * (NPD[1] - 1);
-	b_final.z = b_initial.z + PARTICLE_DIAMETER * (NPD[2] - 1);
+	b_final.x = b_initial.x + BOUNDARY_DIAMETER * (NPD[0] - 1);
+	b_final.y = b_initial.y + BOUNDARY_DIAMETER * (NPD[1] - 1);
+	b_final.z = b_initial.z + BOUNDARY_DIAMETER * (NPD[2] - 1);
+
+	//printf("[%g %g %g] [%g %g %g]\n", b_final.x, b_final.y, b_final.z, B_FINAL_POSITION[0] + BOUNDARY_RADIUS, B_FINAL_POSITION[1] + BOUNDARY_RADIUS, B_FINAL_POSITION[2] + BOUNDARY_RADIUS);
 
 	size_t bytes_boundary_particles = SIM_SIZE * sizeof(float);
 	vec3d* BOUNDARY_POSITIONS; //host pointer
@@ -180,7 +188,7 @@ int initialize() {
 	vec3d* D_BOUNDARY_POSITIONS; //device pointer
 	gpuErrchk(cudaMalloc((void**)&D_BOUNDARY_POSITIONS, bytes_boundary_particles)); // allocate memory in the device
 
-	makeBox(D_BOUNDARY_POSITIONS, PARTICLE_DIAMETER, b_initial, b_final, block_size, D_NPD);
+	makeBox(D_BOUNDARY_POSITIONS, BOUNDARY_DIAMETER, b_initial, b_final, block_size, D_NPD);
 
 	T = N + B; //Total number of particles
 
@@ -191,7 +199,7 @@ int initialize() {
 	cudaFree(D_FLUID_POSITIONS);
 
 	// HASHING ONLY FOR BOUNDARY PARTICLES
-	hashtable_size = nextPrime(2 * B) + 1;
+	hashtable_size = nextPrime(2*B) + 1;
 
 	Hash b_hash(hashtable_size);
 	const int particles_per_row = 200;
@@ -214,7 +222,7 @@ int initialize() {
 	float* d_boundary_mass;
 	gpuErrchk(cudaMalloc((void**)&d_boundary_mass, B * sizeof(float)));
 
-	boundaryPsi << <grid_size, block_size >> > (d_boundary_mass, d_hashtable, rho_0, D_BOUNDARY_POSITIONS, h, invh, particles_per_row, pitch, b_hash, B, n_p_neighbors);
+	boundaryPsi << <grid_size, block_size >> > (d_boundary_mass, d_hashtable, rho_0, D_BOUNDARY_POSITIONS, h, invh, particles_per_row, pitch, b_hash, B);
 
 	float* boundary_mass = (float*)malloc(B * sizeof(float));
 	gpuErrchk(cudaMemcpy(boundary_mass, d_boundary_mass, (size_t)B * sizeof(float), cudaMemcpyDeviceToHost));
@@ -399,6 +407,7 @@ int initialize() {
 	vectorData[1] = &PRESSURE_FORCE;
 	vectorData[2] = &VISCOSITY_FORCE;
 	vectorData[3] = &ST_FORCE;
+	vectorData[4] = &NORMAL;
 	size_vectorData = sizeof(vectorData) / sizeof(double);
 
 	pointDataNames[0] = "density";
@@ -407,6 +416,7 @@ int initialize() {
 	vectorDataNames[1] = "pressure force";
 	vectorDataNames[2] = "viscosity force";
 	vectorDataNames[3] = "st force";
+	vectorDataNames[4] = "normal";
 
 	auto started = std::chrono::high_resolution_clock::now();
 
@@ -450,8 +460,10 @@ int mainLoop() {
 	printf("hashing done\n");
 
 	grid_size = N / block_size + 1;
-	fluidNormal << <grid_size, block_size >> > (d_NORMAL, d_POSITION, d_MASS, d_DENSITY, h,invh, hash,d_hashtable, particles_per_row,pitch, N, n_p_neighbors);
-	//nonPressureForces << <grid_size, block_size >> > (d_POSITION, d_VISCOSITY_FORCE, d_ST_FORCE, d_MASS, d_DENSITY, d_VELOCITY, d_NORMAL, gravity, h, invh, rho_0, visc_const, st_const, particles_per_row, pitch,d_hashtable, hash, N,n_p_neighbors);
+	fluidNormal << <grid_size, block_size >> > (d_NORMAL, d_POSITION, d_MASS, d_DENSITY, h,invh, hash,d_hashtable, particles_per_row,pitch, N);
+	gpuErrchk(cudaDeviceSynchronize());
+	gpuErrchk(cudaPeekAtLastError());
+	nonPressureForces << <grid_size, block_size >> > (d_POSITION, d_VISCOSITY_FORCE, d_ST_FORCE, d_MASS, d_DENSITY, d_VELOCITY, d_NORMAL, gravity, h, invh, rho_0, visc_const, st_const, particles_per_row, pitch,d_hashtable, hash, N);
 
 	gpuErrchk(cudaPeekAtLastError());
 	gpuErrchk(cudaMemcpy(NORMAL, d_NORMAL, N * 3 * sizeof(float), cudaMemcpyDeviceToHost));

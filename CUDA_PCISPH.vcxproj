@@ -58,6 +58,7 @@
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
+      <AdditionalCompilerOptions>-Xptxas -v </AdditionalCompilerOptions>
     </CudaCompile>
     <Bscmake>
       <PreserveSbr>true</PreserveSbr>

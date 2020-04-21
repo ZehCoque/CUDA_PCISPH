@@ -35,4 +35,18 @@ __device__ void sum2Vec3d(vec3d* vec1, vec3d* vec2) {
 	return;
 }
 
+__device__ char* device_strcpy(char* dest, const char* src) {
+	int i = 0;
+	do {
+		dest[i] = src[i];
+	} while (src[i++] != 0);
+	return dest;
+}
+
+__device__ char* device_strcat(char* dest, const char* src) {
+	int i = 0;
+	while (dest[i] != 0) i++;
+	device_strcpy(dest + i, src);
+	return dest;
+}
 
