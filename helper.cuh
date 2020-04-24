@@ -50,3 +50,8 @@ __device__ char* device_strcat(char* dest, const char* src) {
 	return dest;
 }
 
+__device__ float dot_product(vec3d vec1, vec3d vec2) {
+
+	return vec1.x * vec2.x + vec1.y + vec2.y + vec1.z * vec2.z;
+
+}

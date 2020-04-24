@@ -62,7 +62,7 @@ public:
 
     __device__ int hashFunction(vec3d,float);
     
-    __device__ void getPossibleNeighbors(int*,int*, vec3d, float, float,int, size_t);
+    //__device__ void getPossibleNeighbors(int*,int*, vec3d, float, float,int, size_t);
 
 };
 
@@ -88,6 +88,7 @@ __device__ int Hash::hashFunction(vec3d point,float invh) {
 __device__ void Hash::insertItem(int* hashtable, vec3d point, int point_id, float invh, size_t pitch, int Ncols)
 {
     int hash_index = hashFunction(point, invh);
+
     /*printf("[%g %g %g] -> %d\n", point.x, point.y, point.z, hash_index);*/
     int* row_a = (int*)((char*)hashtable + hash_index * pitch);
     for (int i = 0; i < Ncols; i++) {
@@ -98,59 +99,59 @@ __device__ void Hash::insertItem(int* hashtable, vec3d point, int point_id, floa
     }
 }
 
-__device__ void Hash::getPossibleNeighbors(int* possible_neighbors,int* hashtable, vec3d point,float h,float invh,int Ncols,size_t pitch) {
-  
-    vec3d BB;
-    int count = 0;
-    for (int i = 0; i < 5000; i++) {
-        possible_neighbors[i] = -1;
-    }
-    
-    for (int i = -1; i < 2; i++) {
-        for (int j = -1; j < 2; j++) {
-            for (int k = -1; k < 2; k++) {
-                BB.x = point.x + i * h;
-                BB.y = point.y + j * h;
-                BB.z = point.z + k * h;
-
-                int hash_index = hashFunction(BB, invh);
-
-                if (hash_index >= 0) {
-                    /*printf("%d\n", hash_index);*/
-                    int* row_a = (int*)((char*)hashtable + hash_index * pitch);
-                    for (int t = 0; t < Ncols; t++) {
-                        
-                        if (row_a[t] != -1) {
-                            possible_neighbors[count] = row_a[t];
-                           /* atomicAdd(&count,1);*/
-                            printf("%d\n", count);
-                            //printf("%g %g %g %g %g %g %d %d %d\n",point.x,point.y,point.z,BB.x,BB.y,BB.z,hash_index,row_a[t],count);
-                        }
-                    }
-                }
-            }
-        }
-    } 
-
-    //printf("point [%g %g %g] has %d neighbors\n", point.x,point.y,point.z,count);
-    //printf("%g %g %g %d\n",point.x,point.y,point.z,count);
-    int repeated = 0;
-    for (int t = 0; t < 5000; t++) {
-        int check_value = possible_neighbors[t];
-        if (check_value != -1) {
-            for (int g = t + 1; g < 5000; g++) {
-                if (possible_neighbors[g] == check_value) {
-                    possible_neighbors[g] = -1;
-                    repeated++;
-                }
-            }
-        }
-    }
-    
-    //printf("point [%g %g %g] had %d repeated neighbors\n", point.x, point.y, point.z, repeated);
-
-    return;
-}
+//__device__ void Hash::getPossibleNeighbors(int* possible_neighbors,int* hashtable, vec3d point,float h,float invh,int Ncols,size_t pitch) {
+//  
+//    vec3d BB;
+//    int count = 0;
+//    for (int i = 0; i < 5000; i++) {
+//        possible_neighbors[i] = -1;
+//    }
+//    
+//    for (int i = -1; i < 2; i++) {
+//        for (int j = -1; j < 2; j++) {
+//            for (int k = -1; k < 2; k++) {
+//                BB.x = point.x + i * h;
+//                BB.y = point.y + j * h;
+//                BB.z = point.z + k * h;
+//
+//                int hash_index = hashFunction(BB, invh);
+//
+//                if (hash_index >= 0) {
+//                    /*printf("%d\n", hash_index);*/
+//                    int* row_a = (int*)((char*)hashtable + hash_index * pitch);
+//                    for (int t = 0; t < Ncols; t++) {
+//                        
+//                        if (row_a[t] != -1) {
+//                            possible_neighbors[count] = row_a[t];
+//                           /* atomicAdd(&count,1);*/
+//                            printf("%d\n", count);
+//                            //printf("%g %g %g %g %g %g %d %d %d\n",point.x,point.y,point.z,BB.x,BB.y,BB.z,hash_index,row_a[t],count);
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//    } 
+//
+//    //printf("point [%g %g %g] has %d neighbors\n", point.x,point.y,point.z,count);
+//    //printf("%g %g %g %d\n",point.x,point.y,point.z,count);
+//    int repeated = 0;
+//    for (int t = 0; t < 5000; t++) {
+//        int check_value = possible_neighbors[t];
+//        if (check_value != -1) {
+//            for (int g = t + 1; g < 5000; g++) {
+//                if (possible_neighbors[g] == check_value) {
+//                    possible_neighbors[g] = -1;
+//                    repeated++;
+//                }
+//            }
+//        }
+//    }
+//    
+//    //printf("point [%g %g %g] had %d repeated neighbors\n", point.x, point.y, point.z, repeated);
+//
+//    return;
+//}
 
 __global__ void hashParticlePositions(int * d_hashtable,vec3d* points, float invh,Hash hash,int size,size_t pitch,int Ncols){
 
