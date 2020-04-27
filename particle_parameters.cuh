@@ -536,7 +536,7 @@ __global__ void positionAndVelocity(vec3d* points,vec3d* velocities,vec3d* press
 						if (row[t] != -1  && type[row[t]] == 1) {
 							float r = distance(points[index], points[row[t]]);
 							float inst_w = (boundary_diameter - r) / boundary_diameter;
-							printf("(%g - %r)/%g = %g", boundary_diameter,r, boundary_diameter,inst_w);
+							/*printf("(%g - %r)/%g = %g", boundary_diameter,r, boundary_diameter,inst_w);*/
 							if (inst_w > 0) {
 								
 								w[index] += inst_w;
@@ -647,7 +647,7 @@ __global__ void return_hashvalue(vec3d av_point,vec3d* points,Hash hash, float i
 				BB.z = av_point.z + k * h;
 
 				int hash_index = hash.hashFunction(BB, invh);
-				//printf("%d - > [", hash_index);
+				printf("%d - > [", hash_index);
 				hash_list[count] = hash_index;
 				skip = false;
 				for (int t = 0; t < count; t++) {
@@ -660,6 +660,7 @@ __global__ void return_hashvalue(vec3d av_point,vec3d* points,Hash hash, float i
 					int* row = (int*)((char*)d_hashtable + hash_index * pitch);
 					for (int t = 0; t < Ncols; t++) {
 						if (row[t] != -1 ) {
+							printf("%d ", row[t]);
 							atomicAdd(d_tmp_count, 1);
 							d_tmp_points[d_tmp_count[0]].x = points[row[t]].x;
 							d_tmp_points[d_tmp_count[0]].y = points[row[t]].y;
@@ -668,7 +669,7 @@ __global__ void return_hashvalue(vec3d av_point,vec3d* points,Hash hash, float i
 						}
 					}
 				}
-				//printf("]\n");
+				printf("]\n");
 			}
 		}
 	}

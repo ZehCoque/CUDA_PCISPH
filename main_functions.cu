@@ -198,7 +198,7 @@ int initialize() {
 	cudaFree(D_FLUID_POSITIONS);
 
 	// HASHING ONLY FOR BOUNDARY PARTICLES
-	hashtable_size = nextPrime(2*B) + 1;
+	hashtable_size = pow(2, 19);
 
 	Hash b_hash(hashtable_size);
 	const int particles_per_row = 200;
@@ -441,7 +441,7 @@ int initialize() {
 
 	// Initialize main hashtable
 
-	hashtable_size = nextPrime(2 * T) + 1;
+	//hashtable_size = nextPrime(2 * T) + 1;
 
 	hashtable = new int[hashtable_size * particles_per_row];
 	for (int i = 0; i < hashtable_size; ++i) {
@@ -469,7 +469,7 @@ int mainLoop() {
 	hashParticlePositions << <grid_size, block_size >> > (d_hashtable, d_POSITION, invh, hash, T, pitch, particles_per_row);
 	//printf("hashing done\n");
 
-	bool tmp = false;
+	/*bool tmp = false;
 
 	vec3d* tmp_points = (vec3d*)malloc(3 * T * sizeof(float));
 	vec3d* d_tmp_points;
@@ -485,9 +485,7 @@ int mainLoop() {
 
 	std::cout << "x coord:" << std::endl;
 	std::cin >> av_point.x;
-	if (av_point.x > 999) {
-		return 1;
-	}
+
 	std::cout << "y coord:" << std::endl;
 	std::cin >> av_point.y;
 
@@ -514,16 +512,16 @@ int mainLoop() {
 	strcpy(vtu_fullpath, main_path);
 	strcat(vtu_fullpath, "/test.vtu");
 
-	VTU_Writer(vtu_path, iteration, tmp_points, tmp_count, pointData2, vectorData2, pointDataNames, vectorDataNames, size_pointData, 0, vtu_fullpath,2);
+	VTU_Writer(vtu_path, iteration, tmp_points, tmp_count, pointData2, vectorData2, pointDataNames, vectorDataNames, size_pointData, 0, vtu_fullpath,2);*/
 
 
-	//grid_size = N / block_size + 1;
-	//fluidNormal << <grid_size, block_size >> > (d_NORMAL, d_POSITION, d_MASS, d_DENSITY, h,invh, hash,d_hashtable, particles_per_row,pitch, N);
-	//nonPressureForces << <grid_size, block_size >> > (d_POSITION, d_VISCOSITY_FORCE, d_ST_FORCE, d_MASS, d_DENSITY, d_VELOCITY, d_NORMAL, gravity, h, invh, rho_0, visc_const, st_const, particles_per_row, pitch,d_hashtable, hash, N);
+	grid_size = N / block_size + 1;
+	fluidNormal << <grid_size, block_size >> > (d_NORMAL, d_POSITION, d_MASS, d_DENSITY, h,invh, hash,d_hashtable, particles_per_row,pitch, N);
+	nonPressureForces << <grid_size, block_size >> > (d_POSITION, d_VISCOSITY_FORCE, d_ST_FORCE, d_MASS, d_DENSITY, d_VELOCITY, d_NORMAL, gravity, h, invh, rho_0, visc_const, st_const, particles_per_row, pitch,d_hashtable, hash, N);
 
-	////while
+	//while
 
-	//positionAndVelocity << <grid_size, block_size >> > (d_POSITION, d_VELOCITY, d_PRESSURE_FORCE, d_VISCOSITY_FORCE, d_ST_FORCE, gravity,d_NORMAL, d_W, d_TYPE, d_MASS, delta_t, BOUNDARY_DIAMETER, h,invh, hash, particles_per_row, d_hashtable, pitch, N);
+	positionAndVelocity << <grid_size, block_size >> > (d_POSITION, d_VELOCITY, d_PRESSURE_FORCE, d_VISCOSITY_FORCE, d_ST_FORCE, gravity,d_NORMAL, d_W, d_TYPE, d_MASS, delta_t, BOUNDARY_DIAMETER, h,invh, hash, particles_per_row, d_hashtable, pitch, N);
 	//collisionHandler << <grid_size, block_size >> > (d_POSITION, d_VELOCITY, d_NORMAL, d_W, d_TYPE, d_hashtable, h, invh, pitch, hash, particles_per_row, BOUNDARY_DIAMETER, epsilon, N);
 
 	gpuErrchk(cudaPeekAtLastError());
@@ -533,6 +531,7 @@ int mainLoop() {
 	gpuErrchk(cudaMemcpy(VISCOSITY_FORCE, d_VISCOSITY_FORCE, N * 3 * sizeof(float), cudaMemcpyDeviceToHost));
 	gpuErrchk(cudaMemcpy(ST_FORCE, d_ST_FORCE, N * 3 * sizeof(float), cudaMemcpyDeviceToHost));
 
+	simulation_time += delta_t;
 	iteration++;
 
 	return 0;
