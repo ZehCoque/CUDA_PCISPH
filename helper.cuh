@@ -50,8 +50,22 @@ __device__ char* device_strcat(char* dest, const char* src) {
 	return dest;
 }
 
-__device__ float dot_product(vec3d vec1, vec3d vec2) {
+__host__ __device__ float dot_product(vec3d vec1, vec3d vec2) {
 
 	return vec1.x * vec2.x + vec1.y + vec2.y + vec1.z * vec2.z;
+
+}
+
+__device__ __forceinline__ float atomicMaxFloat(float* addr, float value) {
+	float old;
+	old = (value >= 0) ? __int_as_float(atomicMax((int*)addr, __float_as_int(value))) :
+		__uint_as_float(atomicMin((unsigned int*)addr, __float_as_uint(value)));
+
+	return old;
+}
+
+__device__ float maxValueInVec3D(vec3d vec) {
+
+	return fmaxf(vec.x, fmaxf(vec.y, vec.z));
 
 }

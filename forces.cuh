@@ -3,7 +3,7 @@
 #include <device_launch_parameters.h>
 #include "common.cuh"
 
-__device__ vec3d Viscosity(int i, int j,float* mass, float* density,vec3d* velocity, float visc_const, float Laplacian) {
+__device__ vec3d ViscosityForce(int i, int j,float* mass, float* density,vec3d* velocity, float visc_const, float Laplacian) {
 
 	vec3d viscosity;
 
@@ -19,7 +19,7 @@ __device__ vec3d Viscosity(int i, int j,float* mass, float* density,vec3d* veloc
 
 }
 
-__device__ vec3d ST(int i, int j,float r, vec3d* points, float* mass, float* density, vec3d* normal,float st_const,float rho_0,float ST_Kernel)
+__device__ vec3d STForce(int i, int j,float r, vec3d* points, float* mass, float* density, vec3d* normal,float st_const,float rho_0,float ST_Kernel)
 {
 	vec3d st;
 	vec3d cohesion;
@@ -47,4 +47,17 @@ __device__ vec3d ST(int i, int j,float r, vec3d* points, float* mass, float* den
 
 	return st;
 
+}
+
+__device__ vec3d PressureForce(int i, int j, float* pressure, float* mass, float* density, vec3d Spiky_Gradient) {
+
+	vec3d p;
+
+	float tmp = -mass[i] * mass[j] * (pressure[i] / powf(density[i], 2) + pressure[j] / powf(density[j], 2));
+
+	p.x = tmp * Spiky_Gradient.x;
+	p.y = tmp * Spiky_Gradient.y;
+	p.z = tmp * Spiky_Gradient.z;
+
+	return p;
 }

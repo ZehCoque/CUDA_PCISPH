@@ -49,10 +49,10 @@ int nextPrime(int N)
 class Hash
 {
 private:
-    int hashtable_size;    // No. of buckets
-    int p1 = 73856093;
-    int p2 = 19349669;
-    int p3 = 83492791;
+    unsigned int hashtable_size;    // No. of buckets
+    unsigned int p1 = 73856093;
+    unsigned int p2 = 19349669;
+    unsigned int p3 = 83492791;
              
 public:
 

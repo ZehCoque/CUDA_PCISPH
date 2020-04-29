@@ -82,6 +82,9 @@
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
+      <GPUDebugInfo>false</GPUDebugInfo>
+      <GenerateLineInfo>false</GenerateLineInfo>
+      <HostDebugInfo>false</HostDebugInfo>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>

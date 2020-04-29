@@ -19,14 +19,14 @@ int dirExists(const char* const path)
 
 void CreateDir(char* path)
 {
-	char copy_path[80];
+	char copy_path[1024];
 	strcpy(copy_path, path);
 
 	if (dirExists(path) == 1)
 	{
 		return;
 	}
-	char chars_array[80];
+	char chars_array[1024];
 	strcpy(chars_array, strtok(copy_path, "/"));
 
 	while (chars_array)
@@ -36,8 +36,12 @@ void CreateDir(char* path)
 		{
 			return;
 		}
+		
 		strcat(chars_array, "/");
 		strcat(chars_array, strtok(NULL, "/"));
+		
+		
+		
 	}
 	return;
 }
@@ -56,7 +60,7 @@ int count_lines(char path[])
 }
 
 int extractIntegers(char* str) {
-	char buffer[33];
+	char* buffer = new char[strlen(str)];
 	int count = 0;
 	//printf("%zd\n", strlen(str));
 	for (int i = 0; i < strlen(str); i++) {
@@ -66,7 +70,7 @@ int extractIntegers(char* str) {
 			count++;
 		}
 	}
-
+	//printf("buffer = %s\n",buffer);
 	return atoi(buffer);
 }
 
@@ -88,14 +92,14 @@ char* getMainPath(char* main_path) {
 	char tmp2[1024];
 	std::vector<int>arr;
 	strcpy(tmp1, "simulation");
-
+	int integer;
 	while (entry != NULL)
 	{
 		strcpy(tmp2, entry->d_name);
 		// printf("%s\n", entry->d_name);
 		if (entry->d_type == DT_DIR && strstr(tmp2, tmp1) != 0) {
 			//printf("%s\n", entry->d_name);
-			int integer = extractIntegers(tmp2);
+			integer = extractIntegers(tmp2);
 			//printf("%d\n", integer);
 			arr.push_back(integer);
 		}
@@ -105,7 +109,7 @@ char* getMainPath(char* main_path) {
 	closedir(dir);
 
 	if (arr.empty()) {
-		strcat(main_path, "1 ");
+		strcat(main_path, "1");
 		return main_path;
 	}
 
