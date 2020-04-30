@@ -44,8 +44,8 @@ vec3d gravity;
 const float rho_0 = 1000.f; //rest density
 const float visc_const = 0.0010518f; //viscosity constant
 const float st_const = 0.0728f; // surface tension constant
-const float epsilon = 0.95; // dumping coefficient for collision
-const float cs = 1500; // sound speed in water
+const float epsilon = 0.95f; // dumping coefficient for collision
+const float cs = 1500.f; // sound speed in water
 
 //initial conditions
 const float PARTICLE_RADIUS = 0.01f;
@@ -84,7 +84,7 @@ int grid_size;
 float* d_max_force;
 float* d_max_velocity;
 float* d_max_rho_err;
-float delta_t = 0.002;
+float delta_t = 0.002f;
 float max_vol_comp = rho_0 * 0.01;
 float max_rho_fluc = max_vol_comp * 10;
 float BOUNDARY_DIAMETER;
@@ -202,7 +202,7 @@ int initialize() {
 	cudaFree(D_FLUID_POSITIONS);
 
 	// HASHING ONLY FOR BOUNDARY PARTICLES
-	hashtable_size = powf(2, 19);
+	hashtable_size = pow(2, 19);
 
 	Hash b_hash(hashtable_size);
 	const int particles_per_row = 200;
@@ -484,8 +484,6 @@ int initialize() {
 
 	// Initialize main hashtable
 
-	//hashtable_size = nextPrime(2 * T) + 1;
-
 	hashtable = new int[hashtable_size * particles_per_row];
 	for (int i = 0; i < hashtable_size; ++i) {
 		for (int j = 0; j < particles_per_row; j++) {
@@ -514,18 +512,10 @@ int mainLoop() {
 	gpuErrchk(cudaMemcpy2D(d_hashtable, pitch, hashtable, particles_per_row * sizeof(int), particles_per_row * sizeof(int), hashtable_size, cudaMemcpyHostToDevice));
 	hashParticlePositions << <grid_size, block_size >> > (d_hashtable, d_POSITION, invh, hash, T, pitch, particles_per_row);
 
-	vec3d* pos = (vec3d*)malloc(3 * N * sizeof(float));
-
 	grid_size = N / block_size + 1;
-	fluidNormal << <grid_size, block_size >> > (d_NORMAL, d_POSITION, d_MASS, d_DENSITY, h,invh, hash,d_hashtable, particles_per_row,pitch, N);
+	fluidNormal << <grid_size, block_size >> > (d_NORMAL, d_POSITION, d_MASS, d_DENSITY,d_TYPE, rho_0, h,invh, hash,d_hashtable, particles_per_row,pitch, N);
 	nonPressureForces << <grid_size, block_size >> > (d_POSITION, d_VISCOSITY_FORCE, d_ST_FORCE, d_MASS, d_DENSITY, d_VELOCITY, d_NORMAL, gravity,d_TYPE, h, invh, rho_0, visc_const, st_const,cs, particles_per_row, pitch,d_hashtable, hash, N);
 	gpuErrchk(cudaPeekAtLastError());
-	gpuErrchk(cudaDeviceSynchronize());
-	vec3d* f = (vec3d*)malloc(3 * N * sizeof(float));
-	gpuErrchk(cudaMemcpy(f, d_VISCOSITY_FORCE,3* N * sizeof(float), cudaMemcpyDeviceToHost));
-	std::cout << "[" << f[0].x << " " << f[0].y << " " << f[0].z << "]" << std::endl;
-	gpuErrchk(cudaMemcpy(f, d_ST_FORCE,3* N * sizeof(float), cudaMemcpyDeviceToHost));
-	std::cout << "[" << f[0].x << " " << f[0].y << " " << f[0].z << "]" << std::endl;
 
 	//reseting values of pressure
 	gpuErrchk(cudaMemcpy(d_PRESSURE, PRESSURE, N * sizeof(float), cudaMemcpyHostToDevice));
@@ -561,9 +551,6 @@ int mainLoop() {
 
 	positionAndVelocity << <grid_size, block_size >> > (d_POSITION, d_VELOCITY, d_POSITION, d_VELOCITY, d_PRESSURE_FORCE, d_VISCOSITY_FORCE, d_ST_FORCE, gravity, d_MASS, delta_t, N);
 	collisionHandler << <grid_size, block_size >> > (d_POSITION, d_VELOCITY, d_NORMAL, d_TYPE, d_hashtable, h, invh, pitch, hash, particles_per_row, BOUNDARY_DIAMETER, epsilon, N);
-
-	gpuErrchk(cudaMemcpy(pos, d_POSITION, 3 * N * sizeof(float), cudaMemcpyDeviceToHost));
-	std::cout << "[" << pos[0].x << " " << pos[0].y << " " << pos[0].z << "]" << std::endl;
 
 	//criterias for changes in delta_t value
 	gpuErrchk(cudaMemcpy(DENSITY, d_DENSITY, N * sizeof(float), cudaMemcpyDeviceToHost));

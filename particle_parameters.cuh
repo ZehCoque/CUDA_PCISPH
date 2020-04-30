@@ -354,7 +354,7 @@ __global__ void boundaryNormal(vec3d* normal,vec3d* points,vec3d b_initial, vec3
 
 }
 
-__global__ void fluidNormal(vec3d* normal, vec3d* points, float* mass, float* density, float h, float invh, Hash hash, int* d_hashtable, int Ncols,size_t pitch, int size) {
+__global__ void fluidNormal(vec3d* normal, vec3d* points, float* mass, float* density, int* type, float rho_0,float h, float invh, Hash hash, int* d_hashtable, int Ncols,size_t pitch, int size) {
 
 	int index = getGlobalIdx_1D_1D();
 	
@@ -395,7 +395,13 @@ __global__ void fluidNormal(vec3d* normal, vec3d* points, float* mass, float* de
 							if (r <= h && r > 0) {
 
 								vec3d poly6_gradient = Poly6_Gradient(index, row[t], points, r, h, invh);
-								float tmp = h * mass[row[t]] / density[row[t]];
+								float tmp;
+								if (type[row[t]] == 0) {
+									tmp = h * mass[row[t]] / density[row[t]];
+								} else if (type[row[t]] == 1) {
+									tmp = h * mass[row[t]] / rho_0;
+								}
+								
 								normal[index].x += tmp * poly6_gradient.x;
 								normal[index].y += tmp * poly6_gradient.y;
 								normal[index].z += tmp * poly6_gradient.z;
@@ -453,12 +459,12 @@ __global__ void nonPressureForces(vec3d* points,vec3d* viscosity_force, vec3d* s
 							if (r <= h && r > 0) {
 
 								//Viscosity calculation
-								//vec3d visc = ViscosityForce(index, row[t], mass, density, points, velocity, type[row[t]], cs,  h,  r, visc_const, Viscosity_Gradient(index, row[t],points, r, h, invh));
+								vec3d visc = ViscosityForce(index, row[t], mass, density, points, velocity, type[row[t]], cs,  h,  r, visc_const, Viscosity_Gradient(index, row[t],points, r, h, invh));
 
-								////summation of calcualted value to main array
-								//viscosity_force[index].x += visc.x;
-								//viscosity_force[index].y += visc.y;
-								//viscosity_force[index].z += visc.z;
+								//summation of calcualted value to main array
+								viscosity_force[index].x += visc.x;
+								viscosity_force[index].y += visc.y;
+								viscosity_force[index].z += visc.z;
 
 								//Surface tension calculation
 								vec3d st = STForce(index, row[t], r, points, mass, density, normal, type[row[t]], st_const, rho_0, ST_Kernel(r, h, invh));
@@ -735,6 +741,7 @@ __global__ void getMaxVandF(float* max_velocity, float* max_force, vec3d* veloci
 
 	atomicMaxFloat(max_force, fmaxf(max_p,fmaxf(max_v,fmaxf(max_st,max_g))));
 	atomicMaxFloat(max_velocity, maxValueInVec3D(velocities[index]));
+
 
 	return;
 }

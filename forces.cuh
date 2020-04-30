@@ -85,7 +85,7 @@ __device__ vec3d STForce(int i, int j,float r, vec3d* points, float* mass, float
 	st.x = tmp * (cohesion.x + curvature.x);
 	st.y = tmp * (cohesion.y + curvature.y);
 	st.z = tmp * (cohesion.z + curvature.z);
-	printf("[%g %g %g]\n", st.x, st.y, st.z);
+	
 	return st;
 
 }
