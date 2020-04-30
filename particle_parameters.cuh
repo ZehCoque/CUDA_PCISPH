@@ -411,7 +411,7 @@ __global__ void fluidNormal(vec3d* normal, vec3d* points, float* mass, float* de
 	return;
 }
 
-__global__ void nonPressureForces(vec3d* points,vec3d* viscosity_force, vec3d* st_force,float* mass,float* density, vec3d* velocity,vec3d* normal, vec3d gravity,const float h,const float invh, const float rho_0,const float visc_const, const float st_const,const int Ncols,size_t pitch,int* d_hashtable,Hash hash, int size) {
+__global__ void nonPressureForces(vec3d* points,vec3d* viscosity_force, vec3d* st_force,float* mass,float* density, vec3d* velocity,vec3d* normal, vec3d gravity, int* type,const float h,const float invh, const float rho_0,const float visc_const, const float st_const,float cs,const int Ncols,size_t pitch,int* d_hashtable,Hash hash, int size) {
 
 	int index = getGlobalIdx_1D_1D();
 
@@ -453,7 +453,7 @@ __global__ void nonPressureForces(vec3d* points,vec3d* viscosity_force, vec3d* s
 							if (r <= h && r > 0) {
 
 								//Viscosity calculation
-								vec3d visc = ViscosityForce(index, row[t], mass, density, velocity, visc_const, Viscosity_Laplacian(r, h, invh));
+								vec3d visc = ViscosityForce(index, row[t], mass, density, points, velocity, type[row[t]], cs,  h,  r, visc_const, Viscosity_Gradient(index, row[t],points, r, h, invh));
 
 								//summation of calcualted value to main array
 								viscosity_force[index].x += visc.x;
@@ -502,6 +502,7 @@ __global__ void positionAndVelocity(vec3d* points,vec3d* velocities,vec3d* press
 	points[index].y = points[index].y + delta_t * velocities[index].y;
 	points[index].z = points[index].z + delta_t * velocities[index].z;
 
+	return;
 }
 
 __global__ void collisionHandler(vec3d* points, vec3d* velocities,vec3d* normal,int* type,int* d_hashtable,float h,float invh,size_t pitch, Hash hash,int Ncols,float boundary_diameter,float epsilon,int size) {
@@ -649,7 +650,7 @@ __global__ void PressureCalc(float* pressure, float* density,float rho_0,float p
 	return;
 }
 
-__global__ void PressureForce(vec3d* points, vec3d* pressure_force,float* pressure, float* mass, float* density, const float h, const float invh, const int Ncols, size_t pitch, int* d_hashtable, Hash hash, int size) {
+__global__ void PressureForceCalc(vec3d* points, vec3d* pressure_force,float* pressure, float* mass, float* density,int* type, const float h, const float invh, const int Ncols, size_t pitch, int* d_hashtable, Hash hash, int size) {
 
 	int index = getGlobalIdx_1D_1D();
 
@@ -690,7 +691,7 @@ __global__ void PressureForce(vec3d* points, vec3d* pressure_force,float* pressu
 							if (r <= h && r > 0) {
 
 								vec3d spiky_grad = Spiky_Gradient(index, row[t], points, r,  h,  invh);
-								sum2Vec3d(&pressure_force[index],&PressureForce(index, row[t], pressure, mass, density, spiky_grad));
+								sum2Vec3d(&pressure_force[index],&PressureForce(index, row[t], pressure, mass, density,type[row[t]], spiky_grad));
 
 							}
 						}

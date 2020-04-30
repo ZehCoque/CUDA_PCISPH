@@ -26,7 +26,6 @@ int main(void)
 		}
 
 		multiprocessor_writer();
-		simulation_time = final_time;
 	}
 
 	//for (int i = 0; i < 11; i++) {

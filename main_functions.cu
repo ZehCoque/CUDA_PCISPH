@@ -10,8 +10,8 @@
 #include <chrono>
 #include <math.h>
 
-//#include "global_variables.cuh"
 //declaration of all global variables that are going to be used in this file
+
 char main_path[1024];
 char vtk_group_path[1024];
 char vtu_fullpath[1024];
@@ -42,6 +42,7 @@ const float rho_0 = 1000.f; //rest density
 const float visc_const = 0.0010518f; //viscosity constant
 const float st_const = 0.0728f; // surface tension constant
 const float epsilon = 0.95; // dumping coefficient for collision
+const float cs = 1500; // sound speed in water
 
 //initial conditions
 const float PARTICLE_RADIUS = 0.01f;
@@ -80,9 +81,13 @@ int grid_size;
 float* d_max_force;
 float* d_max_velocity;
 float delta_t = 0.002;
+float max_vol_comp = rho_0 * 0.01;
+float max_rho_fluc = max_vol_comp * 10;
 float BOUNDARY_DIAMETER;
 float BOUNDARY_RADIUS;
 float pressure_delta;
+float max_rho_err_t_1 = 0.f;
+float max_rho_err = 0.f;
 
 int initialize() {
 
@@ -192,7 +197,7 @@ int initialize() {
 	cudaFree(D_FLUID_POSITIONS);
 
 	// HASHING ONLY FOR BOUNDARY PARTICLES
-	hashtable_size = pow(2, 19);
+	hashtable_size = powf(2, 19);
 
 	Hash b_hash(hashtable_size);
 	const int particles_per_row = 200;
@@ -483,6 +488,8 @@ int initialize() {
 	gpuErrchk(cudaMallocPitch(&d_hashtable, &pitch, particles_per_row * sizeof(int), hashtable_size));
 	gpuErrchk(cudaMemcpy2D(d_hashtable, pitch, hashtable, particles_per_row * sizeof(int), particles_per_row * sizeof(int), hashtable_size, cudaMemcpyHostToDevice));
 
+	writeTimeKeeper(main_path, simulation_time, iteration);
+
 	std::cout << "Initializing with " << N << " fluid particles and " << B << " boundary particles.\n"
 		<< "Total of " << T << " particles.\n"
 		<< "Smoothing radius = " << h << " m.\n"
@@ -500,7 +507,7 @@ int mainLoop() {
 
 	grid_size = N / block_size + 1;
 	fluidNormal << <grid_size, block_size >> > (d_NORMAL, d_POSITION, d_MASS, d_DENSITY, h,invh, hash,d_hashtable, particles_per_row,pitch, N);
-	nonPressureForces << <grid_size, block_size >> > (d_POSITION, d_VISCOSITY_FORCE, d_ST_FORCE, d_MASS, d_DENSITY, d_VELOCITY, d_NORMAL, gravity, h, invh, rho_0, visc_const, st_const, particles_per_row, pitch,d_hashtable, hash, N);
+	nonPressureForces << <grid_size, block_size >> > (d_POSITION, d_VISCOSITY_FORCE, d_ST_FORCE, d_MASS, d_DENSITY, d_VELOCITY, d_NORMAL, gravity,d_TYPE, h, invh, rho_0, visc_const, st_const,cs, particles_per_row, pitch,d_hashtable, hash, N);
 
 	//reseting values of pressure
 	gpuErrchk(cudaMemcpy(d_PRESSURE, PRESSURE, T * sizeof(float), cudaMemcpyHostToDevice));
@@ -519,7 +526,7 @@ int mainLoop() {
 		float pressure_coeff = -1 / (2 * powf(MASS_calc * delta_t / rho_0, 2) * pressure_delta);
 		PressureCalc << <grid_size, block_size >> > (d_PRESSURE, d_DENSITY, rho_0, pressure_coeff, N);
 
-		PressureForce << <grid_size, block_size >> > (d_POSITION, d_PRESSURE_FORCE, d_PRESSURE, d_MASS, d_DENSITY, h, invh, particles_per_row, pitch, d_hashtable, hash, N);
+		PressureForceCalc << <grid_size, block_size >> > (d_POSITION, d_PRESSURE_FORCE, d_PRESSURE, d_MASS, d_DENSITY,d_TYPE, h, invh, particles_per_row, pitch, d_hashtable, hash, N);
 		_k_++;
 		gpuErrchk(cudaPeekAtLastError());
 		gpuErrchk(cudaDeviceSynchronize());
@@ -537,7 +544,7 @@ int mainLoop() {
 	gpuErrchk(cudaMemcpy(d_max_force, &max_force, sizeof(float), cudaMemcpyHostToDevice));
 	getMaxValues << <grid_size, block_size >> > (d_max_velocity, d_max_force, d_VELOCITY, d_PRESSURE_FORCE, d_VISCOSITY_FORCE, d_ST_FORCE, gravity, d_MASS, N);
 
-	float max_rho_err = 0.f;
+	max_rho_err_t_1 = max_rho_err;
 	float avg_rho_err;
 	float sum_rho_err = 0.f;
 	for (int i = 0; i < N; i++) {
@@ -555,16 +562,79 @@ int mainLoop() {
 	gpuErrchk(cudaMemcpy(&max_velocity, d_max_velocity, sizeof(float), cudaMemcpyDeviceToHost));
 	gpuErrchk(cudaMemcpy(&max_force, d_max_force, sizeof(float), cudaMemcpyDeviceToHost));
 
-	bool criteria1 = 0.19 * sqrt(h / max_force) > delta_t;
-	//bool criteria2 = 0.19 * sqrt(h / max_force) > delta_t;
-	//bool criteria3 = 0.19 * sqrt(h / max_force) > delta_t;
-	//bool criteria4 = 0.19 * sqrt(h / max_force) > delta_t;
+	// delta_t increase
+	bool criteria1 = 0.19f * sqrt(h / max_force) > delta_t;
+	bool criteria2 = max_rho_err < 4.5f * max_vol_comp;
+	bool criteria3 = avg_rho_err < 0.9f * max_vol_comp;
+	bool criteria4 = 0.39f * (h/max_velocity) > delta_t;
+
+	if (criteria1 && criteria2 && criteria3 && criteria4) {
+		delta_t += delta_t * 0.2f / 100;
+	}
+
+	//delta_t decrease
+
+	criteria1 = 0.2f * sqrt(h / max_force) < delta_t;
+	criteria2 = max_rho_err > 5.5f * max_vol_comp;
+	criteria3 = avg_rho_err > max_vol_comp;
+	criteria4 = 0.4f * (h / max_velocity) <= delta_t;
+
+	if (criteria1 || criteria2 || criteria3 || criteria4) {
+		delta_t -= delta_t * 0.2f / 100;
+	}
+
+	//shock handling
+
+	criteria1 = max_rho_err - max_rho_err_t_1 > 8 * max_vol_comp;
+	criteria2 = max_rho_err > max_rho_fluc;
+	criteria3 = 0.45f * (h/max_velocity) < delta_t;
+
+	if (criteria1 || criteria2 || criteria3) {
+
+		std::cout << "\nSHOCK DETECTED! RETURNING 2 ITERATIONS!\n" << std::endl;
+
+		//SHOCK DETECTED
+		delta_t = fminf(0.2f * sqrt(h/max_force),0.25f*h/max_velocity);
+
+		//Return 2 iterations
+
+		iteration -= 2;
+		if (iteration < 0) {
+			std::cout << "\nIMPOSSIBLE TO RETURN 2 ITERATIONS! TERMINATING SIMULATION\n" << std::endl;
+			return 1;
+		}
+
+		vec3d* position = (vec3d*)malloc(N * sizeof(vec3d));
+		vec3d* velocity = (vec3d*)malloc(N * sizeof(vec3d));
+
+		char iter_path[100];
+		char num_buffer[50];
+		itoa(iteration, num_buffer, 10);
+		strcpy(iter_path, vtu_path);
+		strcat(iter_path, "/iter");
+		strcat(iter_path, num_buffer);
+		strcat(iter_path, ".vtu");
+
+		readVTU(iter_path, position, velocity);
+
+		getNewSimTime(main_path, &simulation_time, iteration);
+
+		gpuErrchk(cudaMemcpy(d_POSITION, position, 3 * N* sizeof(float), cudaMemcpyHostToDevice));
+		gpuErrchk(cudaMemcpy(d_VELOCITY, velocity, 3 * N * sizeof(float), cudaMemcpyHostToDevice));
+
+		gpuErrchk(cudaPeekAtLastError());
+		gpuErrchk(cudaDeviceSynchronize());
+
+		return 0;
+	}
 
 	gpuErrchk(cudaPeekAtLastError());
 	gpuErrchk(cudaDeviceSynchronize());
 
 	simulation_time += delta_t;
 	iteration++;
+
+	writeTimeKeeper(main_path, simulation_time, iteration);
 
 	return 0;
 }

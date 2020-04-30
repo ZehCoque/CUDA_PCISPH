@@ -24,18 +24,19 @@ __host__ __device__ vec3d Poly6_Gradient(int i, int j,vec3d* points, float r, fl
 
 }
 
-__device__ vec3d Viscosity_Gradient(vec3d point, float r, float h, float invh)
+__device__ vec3d Viscosity_Gradient(int i, int j, vec3d* points, float r, float h, float invh)
 {
 
 	vec3d visc_grad;
 
 	float invr = 1 / r;
+	
+	float tmp1 = 2.38732414637f * powf(invh, 3);
+	float tmp2 = -1.5f * r * powf(invh, 3) + 2 * powf(invh, 2) - 0.5f * h * powf(invr, 3);
 
-	float tmp = -1.5f * r * invh * invh * invh + 2 * invh * invh - 0.5f * h * invr * invr * invr;
-
-	visc_grad.x = 2.387324146f * invh * invh * invh * point.x * tmp;
-	visc_grad.y = 2.387324146f * invh * invh * invh * point.y * tmp;
-	visc_grad.z = 2.387324146f * invh * invh * invh * point.z * tmp;
+	visc_grad.x = tmp1 * (points[i].x - points[j].x) * tmp2;
+	visc_grad.y = tmp1 * (points[i].y - points[j].y) * tmp2;
+	visc_grad.z = tmp1 * (points[i].z - points[j].z) * tmp2;
 
 	return visc_grad;
 }

@@ -167,3 +167,84 @@ void cudaAtributes(void *dev_ptr) {
 	printf("%d %d %d hptr = %p dptr = %p\n", static_cast<int>(atributes->memoryType), atributes->device, atributes->isManaged, atributes->devicePointer, atributes->hostPointer);
 	return;
 }
+
+void writeTimeKeeper(char* main_path, float simulation_time, int iteration) {
+
+	char buffer[1024];
+	strcpy(buffer, main_path);
+	char* time_keeper_path = strcat(buffer, "/time_keeper.dat");
+
+	std::ofstream time_keeper;
+	time_keeper.open(time_keeper_path, std::ios::app);
+
+	time_keeper << iteration << " " << simulation_time << "\n";
+
+	time_keeper.close();
+
+}
+
+void getNewSimTime(char* main_path, float *simulation_time, int iteration) {
+
+	char buff1[100];
+	strcpy(buff1, main_path);
+	char* time_keeper_path = strcat(buff1, "/time_keeper.dat");
+
+	std::ifstream time_keeper(time_keeper_path);
+
+	char buff2[100];
+	strcpy(buff2, main_path);
+	char* time_keeper_path_2 = strcat(buff2, "/time_keeper2.dat");
+
+	std::ofstream time_keeper2;
+	time_keeper2.open(time_keeper_path_2);
+
+	time_keeper.seekg(0, std::ios::beg);
+
+	char* num_buffer = new char[50];
+	int buff_index = 0;
+	int num;
+	bool newline = true;
+	for (char write2line; time_keeper.get(write2line);) {
+		time_keeper2 << write2line;
+		if (isdigit(write2line) && newline) {
+			num_buffer[buff_index] = write2line;
+			buff_index++;
+		}
+		else if (write2line == 32) {
+			num = atoi(num_buffer);
+			num_buffer = new char[50];
+			buff_index = 0;
+			if (num == iteration) {
+				break;
+			}
+			newline = false;
+			
+		}
+		else if (write2line == 10) {
+			newline = true;
+		}
+
+	}
+
+	for (char write2line; time_keeper.get(write2line);) {
+		time_keeper2 << write2line;
+		if (isdigit(write2line) || write2line == 46) {
+			num_buffer[buff_index] = write2line;
+			buff_index++;
+		}
+		else if (write2line == 10) {
+			break;
+		}
+	}
+
+	simulation_time[0] = (float)atof(num_buffer);
+	time_keeper.close();
+	time_keeper2.close();
+
+	std::cout << time_keeper_path << "\n";
+	std::cout << time_keeper_path_2 << "\n";
+	remove(time_keeper_path);
+	rename(time_keeper_path_2, time_keeper_path);
+
+	return;
+}
