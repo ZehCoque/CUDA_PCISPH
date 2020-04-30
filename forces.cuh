@@ -54,7 +54,7 @@ __device__ vec3d ViscosityForce(int i, int j, float* mass, float* density, vec3d
 
 }
 
-__device__ vec3d STForce(int i, int j,float r, vec3d* points, float* mass, float* density, vec3d* normal,float st_const,float rho_0,float ST_Kernel)
+__device__ vec3d STForce(int i, int j,float r, vec3d* points, float* mass, float* density, vec3d* normal,int type, float st_const,float rho_0,float ST_Kernel)
 {
 	vec3d st;
 	vec3d cohesion;
@@ -63,23 +63,29 @@ __device__ vec3d STForce(int i, int j,float r, vec3d* points, float* mass, float
 	float tmp;
 
 	tmp = -st_const * mass[i] * mass[j] * ST_Kernel / r;
-
+	
 	cohesion.x = tmp * (points[i].x - points[j].x);
 	cohesion.y = tmp * (points[i].y - points[j].y);
 	cohesion.z = tmp * (points[i].z - points[j].z);
 
 	tmp = -st_const * mass[i];
-
+	
 	curvature.x = tmp * (normal[i].x - normal[j].x);
 	curvature.y = tmp * (normal[i].y - normal[j].y);
 	curvature.z = tmp * (normal[i].z - normal[j].z);
 
-	tmp = 2 * rho_0 / (density[i] + density[j]);
+	if (type == 0) {
+		tmp = 2 * rho_0 / (density[i] + density[j]);
+	}
+	else if (type == 1) {
+		tmp = 2 * rho_0 / (density[i] + rho_0);
+	}
+	
 
 	st.x = tmp * (cohesion.x + curvature.x);
 	st.y = tmp * (cohesion.y + curvature.y);
 	st.z = tmp * (cohesion.z + curvature.z);
-
+	printf("[%g %g %g]\n", st.x, st.y, st.z);
 	return st;
 
 }

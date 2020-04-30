@@ -240,11 +240,17 @@ void getNewSimTime(char* main_path, float *simulation_time, int iteration) {
 	simulation_time[0] = (float)atof(num_buffer);
 	time_keeper.close();
 	time_keeper2.close();
-
-	std::cout << time_keeper_path << "\n";
-	std::cout << time_keeper_path_2 << "\n";
 	remove(time_keeper_path);
 	rename(time_keeper_path_2, time_keeper_path);
 
 	return;
+}
+
+double dround(double val, int dp) {
+	int charsNeeded = 1 + snprintf(NULL, 0, "%.*f", dp, val);
+	char* buffer = (char*)malloc(charsNeeded);
+	snprintf(buffer, charsNeeded, "%.*f", dp, val);
+	double result = atof(buffer);
+	free(buffer);
+	return result;
 }

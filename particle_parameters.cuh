@@ -419,7 +419,7 @@ __global__ void nonPressureForces(vec3d* points,vec3d* viscosity_force, vec3d* s
 		return;
 	}
 
-	//reseting vec3d valus to 0
+	//reseting vec3d value to 0
 	assignToVec3d(&viscosity_force[index]);
 	assignToVec3d(&st_force[index]);
 
@@ -453,15 +453,15 @@ __global__ void nonPressureForces(vec3d* points,vec3d* viscosity_force, vec3d* s
 							if (r <= h && r > 0) {
 
 								//Viscosity calculation
-								vec3d visc = ViscosityForce(index, row[t], mass, density, points, velocity, type[row[t]], cs,  h,  r, visc_const, Viscosity_Gradient(index, row[t],points, r, h, invh));
+								//vec3d visc = ViscosityForce(index, row[t], mass, density, points, velocity, type[row[t]], cs,  h,  r, visc_const, Viscosity_Gradient(index, row[t],points, r, h, invh));
 
-								//summation of calcualted value to main array
-								viscosity_force[index].x += visc.x;
-								viscosity_force[index].y += visc.y;
-								viscosity_force[index].z += visc.z;
+								////summation of calcualted value to main array
+								//viscosity_force[index].x += visc.x;
+								//viscosity_force[index].y += visc.y;
+								//viscosity_force[index].z += visc.z;
 
 								//Surface tension calculation
-								vec3d st = STForce(index, row[t], r, points, mass, density, normal, st_const, rho_0, ST_Kernel(r, h, invh));
+								vec3d st = STForce(index, row[t], r, points, mass, density, normal, type[row[t]], st_const, rho_0, ST_Kernel(r, h, invh));
 
 								//summation of calcualted value to main array
 								st_force[index].x += st.x;
@@ -482,7 +482,10 @@ __global__ void nonPressureForces(vec3d* points,vec3d* viscosity_force, vec3d* s
 	return;
 }
 
-__global__ void positionAndVelocity(vec3d* points,vec3d* velocities,vec3d* pressure_force, vec3d* viscosity_force, vec3d* st_force,vec3d gravity,float* mass,float delta_t,int size) {
+__global__ void positionAndVelocity(vec3d* points1,vec3d* velocities1, vec3d* points2, vec3d* velocities2, vec3d* pressure_force, vec3d* viscosity_force, vec3d* st_force,vec3d gravity,float* mass,float delta_t,int size) {
+
+	// array 1 -> Will be changed by this kernel
+	// array 2 -> Wont be changed by this kernel
 
 	int index = getGlobalIdx_1D_1D();
 
@@ -493,14 +496,14 @@ __global__ void positionAndVelocity(vec3d* points,vec3d* velocities,vec3d* press
 	float tmp = delta_t / mass[index];
 	//printf("%g/%g = %g\n", delta_t, mass[index],tmp);
 	//calculating velocity
-	velocities[index].x = velocities[index].x + (pressure_force[index].x + viscosity_force[index].x + st_force[index].x + gravity.x * mass[index]) * (tmp);
-	velocities[index].y = velocities[index].y + (pressure_force[index].y + viscosity_force[index].y + st_force[index].y + gravity.y * mass[index]) * (tmp);
-	velocities[index].z = velocities[index].z + (pressure_force[index].z + viscosity_force[index].z + st_force[index].z + gravity.z * mass[index]) * (tmp);
+	velocities1[index].x = velocities2[index].x + (pressure_force[index].x + viscosity_force[index].x + st_force[index].x + gravity.x * mass[index]) * (tmp);
+	velocities1[index].y = velocities2[index].y + (pressure_force[index].y + viscosity_force[index].y + st_force[index].y + gravity.y * mass[index]) * (tmp);
+	velocities1[index].z = velocities2[index].z + (pressure_force[index].z + viscosity_force[index].z + st_force[index].z + gravity.z * mass[index]) * (tmp);
 
 	//calculating position
-	points[index].x = points[index].x + delta_t * velocities[index].x;
-	points[index].y = points[index].y + delta_t * velocities[index].y;
-	points[index].z = points[index].z + delta_t * velocities[index].z;
+	points1[index].x = points2[index].x + delta_t * velocities1[index].x;
+	points1[index].y = points2[index].y + delta_t * velocities1[index].y;
+	points1[index].z = points2[index].z + delta_t * velocities1[index].z;
 
 	return;
 }
@@ -587,7 +590,7 @@ __global__ void collisionHandler(vec3d* points, vec3d* velocities,vec3d* normal,
 	return;
 }
 
-__global__ void DensityCalc(vec3d* points, float* mass, float* density, const float h, const float invh, const float rho_0, const int Ncols, size_t pitch, int* d_hashtable, Hash hash, int size) {
+__global__ void DensityCalc(float* max_rho_err, vec3d* points, float* mass, float* density, const float h, const float invh, const float rho_0, const int Ncols, size_t pitch, int* d_hashtable, Hash hash, int size) {
 
 	int index = getGlobalIdx_1D_1D();
 
@@ -633,6 +636,12 @@ __global__ void DensityCalc(vec3d* points, float* mass, float* density, const fl
 		}
 	}
 
+	if (density[index] - rho_0 <= 0) {
+		return;
+	}
+
+	atomicMaxFloat(max_rho_err, density[index] - rho_0);
+
 	return;
 }
 
@@ -658,7 +667,7 @@ __global__ void PressureForceCalc(vec3d* points, vec3d* pressure_force,float* pr
 		return;
 	}
 
-	//reseting vec3d valus to 0
+	//reseting vec3d value to 0
 	assignToVec3d(&pressure_force[index]);
 	
 	vec3d BB;
@@ -691,7 +700,8 @@ __global__ void PressureForceCalc(vec3d* points, vec3d* pressure_force,float* pr
 							if (r <= h && r > 0) {
 
 								vec3d spiky_grad = Spiky_Gradient(index, row[t], points, r,  h,  invh);
-								sum2Vec3d(&pressure_force[index],&PressureForce(index, row[t], pressure, mass, density,type[row[t]], spiky_grad));
+								vec3d p = PressureForce(index, row[t], pressure, mass, density, type[row[t]], spiky_grad);
+								sum2Vec3d(&pressure_force[index],&p);
 
 							}
 						}
@@ -704,7 +714,7 @@ __global__ void PressureForceCalc(vec3d* points, vec3d* pressure_force,float* pr
 	return;
 }
 
-__global__ void getMaxValues(float* max_velocity, float* max_force, vec3d* velocities, vec3d* pressure_force, vec3d* viscosity_force, vec3d* st_force, vec3d gravity,float* mass,int size) {
+__global__ void getMaxVandF(float* max_velocity, float* max_force, vec3d* velocities, vec3d* pressure_force, vec3d* viscosity_force, vec3d* st_force, vec3d gravity,float* mass,int size) {
 
 	int index = getGlobalIdx_1D_1D();
 
