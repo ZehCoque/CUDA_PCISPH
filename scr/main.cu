@@ -19,10 +19,10 @@ int main(void)
 		printf("\n\nINITIALIZATION ERROR\n\n");
 		return 1;
 	} 
-
+	std::cout << "PROGRESS:" << std::endl;
 	while (simulation_time < final_time)
 	{
-		std::cout << "PROGRESS:" << std::endl;
+		
 		displayProgress(start);
 		int main_loop = mainLoop();
 
