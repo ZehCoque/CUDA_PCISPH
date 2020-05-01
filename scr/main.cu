@@ -18,7 +18,7 @@ int main(void)
 	if (init != 0) {
 		printf("\n\nINITIALIZATION ERROR\n\n");
 		return 1;
-	}
+	} 
 
 	while (simulation_time < final_time)
 	{
