@@ -10,7 +10,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdio.h>
-#include "include/dirent.h"
+#include "dirent.h"
 #include <sstream>
 #include <vector>
 #include <algorithm>

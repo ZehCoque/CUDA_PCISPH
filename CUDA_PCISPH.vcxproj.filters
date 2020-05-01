@@ -1,56 +1,18 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <CudaCompile Include="CUDA_PCISPH.cu">
+    <CudaCompile Include="scr\VTK.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
-    <CudaCompile Include="utilities.cu">
+    <CudaCompile Include="scr\main.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
-    <CudaCompile Include="VTK.cu">
+    <CudaCompile Include="scr\main_functions.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
-    <CudaCompile Include="main_functions.cu">
+    <CudaCompile Include="scr\utilities.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="common.cuh">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="utilities.cuh">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="device_functions.cuh">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="VTK.cuh">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="particle_positions.cuh">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="resource.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="hashing.cuh">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="particle_parameters.cuh">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="kernels.cuh">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="global_variables.cuh">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="helper.cuh">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="forces.cuh">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Header Files">
@@ -59,5 +21,40 @@
     <Filter Include="Source Files">
       <UniqueIdentifier>{8b82a39d-1207-4665-887f-410423ce1e92}</UniqueIdentifier>
     </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="lib\common.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\device_functions.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\forces.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\global_variables.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\hashing.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\helper.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\kernels.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\particle_parameters.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\particle_positions.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\utilities.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\VTK.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

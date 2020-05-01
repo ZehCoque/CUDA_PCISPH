@@ -42,6 +42,14 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+    <OutDir>$(SolutionDir)bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)bin\intermediates\$(Platform)\$(Configuration)\</IntDir>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)inc;$(SolutionDir)lib</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(SolutionDir)bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)bin\intermediates\$(Platform)\$(Configuration)\</IntDir>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(SolutionDir)inc;$(SolutionDir)lib</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -88,24 +96,23 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CudaCompile Include="CUDA_PCISPH.cu" />
-    <CudaCompile Include="main_functions.cu" />
-    <CudaCompile Include="utilities.cu" />
-    <CudaCompile Include="VTK.cu" />
+    <CudaCompile Include="scr\main.cu" />
+    <CudaCompile Include="scr\main_functions.cu" />
+    <CudaCompile Include="scr\utilities.cu" />
+    <CudaCompile Include="scr\VTK.cu" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="common.cuh" />
-    <ClInclude Include="device_functions.cuh" />
-    <ClInclude Include="forces.cuh" />
-    <ClInclude Include="global_variables.cuh" />
-    <ClInclude Include="hashing.cuh" />
-    <ClInclude Include="helper.cuh" />
-    <ClInclude Include="kernels.cuh" />
-    <ClInclude Include="particle_parameters.cuh" />
-    <ClInclude Include="particle_positions.cuh" />
-    <ClInclude Include="resource.h" />
-    <ClInclude Include="utilities.cuh" />
-    <ClInclude Include="VTK.cuh" />
+    <ClInclude Include="lib\common.cuh" />
+    <ClInclude Include="lib\device_functions.cuh" />
+    <ClInclude Include="lib\forces.cuh" />
+    <ClInclude Include="lib\global_variables.cuh" />
+    <ClInclude Include="lib\hashing.cuh" />
+    <ClInclude Include="lib\helper.cuh" />
+    <ClInclude Include="lib\kernels.cuh" />
+    <ClInclude Include="lib\particle_parameters.cuh" />
+    <ClInclude Include="lib\particle_positions.cuh" />
+    <ClInclude Include="lib\utilities.cuh" />
+    <ClInclude Include="lib\VTK.cuh" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
