@@ -273,7 +273,7 @@ void displayProgress(std::chrono::high_resolution_clock::time_point start) {
 	auto elapsed_time = std::chrono::duration_cast<std::chrono::seconds>(current_time - start).count();
 
 	std::cout << "] " << dround(progress * 100.0, 2) << "% | " << 
-		"Elapsed time: "<< elapsed_time << " s | Time step: " << round(delta_t * 1000) << " ms | Iteration Number: " << iteration << " | Max Density Error: " << round(max_rho_err) << "    \r";
+		"Elapsed time: "<< elapsed_time << " s | Time step: " << dround(delta_t * 1000,3) << " ms | Iteration Number: " << iteration << " | Max Density Error: " << round(max_rho_err) << "    \r";
 	std::cout.flush();
 
 	return;

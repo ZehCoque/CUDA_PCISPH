@@ -62,7 +62,7 @@ __device__ float ST_Kernel(float r, float h,float invh)
 
 }
 
-__device__ vec3d Spiky_Gradient(int i, int j, vec3d* points, float r, float h, float invh) {
+__host__ __device__ vec3d Spiky_Gradient(int i, int j, vec3d* points, float r, float h, float invh) {
 
 	vec3d spiky;
 
