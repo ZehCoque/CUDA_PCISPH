@@ -73,7 +73,6 @@ __global__ void boundaryNormal(vec3d* normal,vec3d* points,vec3d b_initial, vec3
 	normal[index].y = 0.f;
 	normal[index].z = 0.f;
 
-
 	if (point.x == b_initial.x) {
 		normal[index].x = 1.f;
 
@@ -350,7 +349,7 @@ __global__ void boundaryNormal(vec3d* normal,vec3d* points,vec3d b_initial, vec3
 		return;
 	}
 
-
+	return;
 
 }
 
@@ -754,5 +753,41 @@ __global__ void getMaxVandF(float* max_velocity, float* max_force, vec3d* veloci
 		atomicAddFloat(sum_rho_error, rho_err);
 	}
 
+	return;
+}
+
+__global__ void hashtableReset(int* d_hashtable,int Ncols,size_t pitch, int size) {
+
+	int index = getGlobalIdx_1D_1D();
+
+	if (index >= size) {
+		return;
+	}
+
+	int* row = (int*)((char*)d_hashtable + index * pitch);
+	for (int t = 0; t < Ncols; t++) {
+		row[t] = -1;
+	}
+
+	return;
+
+}
+
+__global__ void resetValues(float* max_velocity, float* max_force, float* sum_rho_err) {
+	max_velocity = 0;
+	max_force = 0;
+	sum_rho_err = 0;
+	return;
+}
+
+__global__ void resetPressure(float* pressure, int size) {
+
+	int index = getGlobalIdx_1D_1D();
+
+	if (index >= size) {
+		return;
+	}
+
+	pressure[index] = 0.f;
 	return;
 }

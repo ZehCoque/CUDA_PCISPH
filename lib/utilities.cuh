@@ -18,9 +18,9 @@ char* getMainPath(char* main_path);
 
 char* clearAddressArray(char* buffer, char* s1, char* s2);
 
-void writeTimeKeeper(char* main_path, float simulation_time, int iteration);
+void writeTimeKeeper(char* main_path);
 
-void getNewSimTime(char* main_path, float *simulation_time, int iteration);
+void getNewSimTime(char* main_path);
 
 double dround(double val, int dp);
 

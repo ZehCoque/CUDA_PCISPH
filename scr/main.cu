@@ -3,6 +3,8 @@
 #include "utilities.cuh"
 #include <chrono>
 
+int fileReader();
+
 int initialize();
 
 int mainLoop();
@@ -13,13 +15,21 @@ int main(void)
 {
 	std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 	std::cout << "INITIALIZING...\n";
+
+	int rdr = fileReader();
+
 	int init = initialize();
+	std::chrono::high_resolution_clock::time_point init_end = std::chrono::high_resolution_clock::now();
+	auto init_time = std::chrono::duration_cast<std::chrono::seconds>(init_end - start).count();
+	std::cout << "It took " << init_time << " s to initialize\n"
+	<< "----------------------------------------------------------------\n\n";
 	//system("CLS");
 	if (init != 0) {
 		printf("\n\nINITIALIZATION ERROR\n\n");
 		return 1;
 	} 
-	std::cout << "PROGRESS:" << std::endl;
+
+	std::cout << "MAIN LOOP:\n" << "Progress:" << std::endl;
 	while (simulation_time < final_time)
 	{
 		

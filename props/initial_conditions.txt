@@ -1,0 +1,13 @@
+start
+particle_radius = 0.01;
+mass = 0; * if value for mass is equal to 0, the mass will be calculated as 4/3 * pi * r^3
+
+fluid_initial_coord = [0,0,0]; *should be defined between [] and each axis separated by ,  
+fluid_final_coord = [0.5,1,0.5] *should be defined between [] and each axis separated by , 
+boundary_initial_coord = [0,0,0]; *should be defined between [] and each axis separated by , 
+boundary_final_coord = [1,1,1]; *should be defined between [] and each axis separated by , 
+fluid_initial_velocity = [0,0,0]; *should be defined between [] and each axis separated by , 
+
+maximum_volume_compression = 1; *defined as percentage of rho_0
+maximum_density_fluctuation = 10; *defined as percentage of rho_0
+end

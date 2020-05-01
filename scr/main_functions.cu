@@ -10,6 +10,7 @@
 #include <chrono>
 #include <math.h>
 
+
 //declaration of all global variables that are going to be used in this file
 
 char main_path[1024];
@@ -32,34 +33,34 @@ vec3d* d_PRESSURE_FORCE;
 vec3d* d_NORMAL;
 float* DENSITY;
 float* d_DENSITY;
-float* PRESSURE;
 float* d_PRESSURE;
 float* d_MASS;
 int* d_TYPE;
-int* hashtable;
 int* d_hashtable;
 vec3d gravity;
 
 //physical constants
-const float rho_0 = 1000.f; //rest density
-const float visc_const = 0.0010518f; //viscosity constant
-const float st_const = 0.0728f; // surface tension constant
-const float epsilon = 0.95f; // dumping coefficient for collision
-const float cs = 1500.f; // sound speed in water
+float rho_0; //rest density
+float visc_const; //viscosity constant
+float st_const; // surface tension constant
+float epsilon; // dumping coefficient for collision
+float cs; // sound speed in water
 
 //initial conditions
-const float PARTICLE_RADIUS = 0.01f;
-const float MASS_calc = rho_0 * (float)M_PI * pow(PARTICLE_RADIUS, 3.f) / 3.f * 4.f;
-const float PARTICLE_DIAMETER = 2 * PARTICLE_RADIUS;
-const float F_INITIAL_POSITION[3] = { 0.f,0.f,0.f }; //Fluid particles initial position
-const float F_FINAL_POSITION[3] = { 0.5f,1.f,0.5f }; //Fluid particles final position
-const float B_INITIAL_POSITION[3] = { 0.f,0.f,0.f }; //Boundary particles final position
-const float B_FINAL_POSITION[3] = { 1.f,1.f,1.f }; //Boundary particles final position
+float PARTICLE_RADIUS;
+float MASS_calc;// = rho_0 * (float)M_PI * pow(PARTICLE_RADIUS, 3.f) / 3.f * 4.f;
+float USER_MASS;
+float PARTICLE_DIAMETER;
+float F_INITIAL_POSITION[3]; // = { 0.f,0.f,0.f }; //Fluid particles initial position
+float F_FINAL_POSITION[3]; // = { 0.5f,1.f,0.5f }; //Fluid particles final position
+float B_INITIAL_POSITION[3]; // = { 0.f,0.f,0.f }; //Boundary particles final position
+float B_FINAL_POSITION[3]; // = { 1.f,1.f,1.f }; //Boundary particles final position
+float V_INITIAL[3];
 
 //controlling iteration number and simulation time
 int iteration = 1;
-float simulation_time = 0.f; //in seconds
-float final_time = 10.f; //in seconds
+float simulation_time; //in seconds
+float final_time; //in seconds
 
 //number of particles
 int N; //fluid particles
@@ -68,34 +69,371 @@ int T; //total particles
 
 //variables for hashtable
 size_t pitch;
-const int particles_per_row = 200;
+int particles_per_row = 200;
 int hashtable_size;
-//const int n_p_neighbors = 8000; //in case of memory failure, raise this number
 
 //simulation parameters
 float invh;
 float h;
 
 //CUDA variables
-int block_size = 1024;
+int block_size;
 int grid_size;
 
 //PCISPH variables
+float vol_comp_perc;
+float dens_fluc_perc;
 float* d_max_force;
 float* d_max_velocity;
 float* d_max_rho_err;
 float* d_sum_rho_err;
-float delta_t = 0.002f;
-float max_vol_comp = rho_0 * 0.01;
-float max_rho_fluc = max_vol_comp * 10;
+float delta_t;
+float max_vol_comp;
+float max_rho_fluc;
 float BOUNDARY_DIAMETER;
 float BOUNDARY_RADIUS;
 float pressure_delta;
 float max_rho_err_t_1 = 0.f;
 float max_rho_err;
 
+int fileReader() {
+
+	//allocating memory
+	char* row = new char[256];
+	int row_buff_index = 0;
+	char* num_buffer = new char[256];
+	int num_buffer_index = 0;
+	float num;
+	vec3d vec;
+
+	//names
+	char* phys_props_names[] = { "rho_0","visc_const","surface_tension_const","collision_dumping_coeff","fluid_sound_speed" };
+	char* init_cond_names[] = {"particle_radius","mass","fluid_initial_coord","fluid_final_coord","boundary_initial_coord","boundary_final_coord","fluid_initial_velocity","maximum_volume_compression","maximum_density_fluctuation"};
+	char* system_names[] = { "initial_delta_t","initial_time","final_time","neighbors_per_particle" };
+	
+	int phys_props_size = sizeof(phys_props_names) / 8;
+	int init_cond_size = sizeof(init_cond_names) / 8;
+	int system_size = sizeof(system_names) / 8;
+
+	//paths
+	char* phys_props_path = "./props/physical_props.txt";
+	char* initial_conditions_path = "./props/initial_conditions.txt";
+	char* system_path = "./props/system.txt";
+
+	if (dirExists(phys_props_path) == 1) {
+		std::cout << "\nERROR! Could not find physical properties file at " << phys_props_path << "\n";
+		return 1;
+	}
+
+	//reading physical properties
+	std::ifstream phys_props (phys_props_path);
+
+	for (char write2line; phys_props.get(write2line);) {
+		if (phys_props.eof()) {
+			break;
+		}
+
+		if (write2line == 10) {
+
+			int i = 0;
+
+			for (i; i < phys_props_size; i++) {
+				if (strstr(row, phys_props_names[i]) != nullptr) {
+					break;
+				}
+			}
+			if (i < phys_props_size) {
+				bool save_char = false;
+				for (int j = 0; j < strlen(row); j++) {
+					if (row[j] == 61) {
+						save_char = true;
+						for (int k = j; k < strlen(row); k++) {
+							if (!isdigit(row[k + 1])) {
+								j++;
+							}
+							else { break; }
+						}
+					}
+					else if (row[j] == 59) {
+						num = atof(num_buffer);
+						num_buffer_index = 0;
+						num_buffer = new char[256];
+						break;
+					}
+					else if ((isdigit(row[j]) || row[j] == 46 || row[j] == 45) && save_char) {
+						num_buffer[num_buffer_index] = row[j];
+						num_buffer_index++;
+					}
+
+				}
+
+				if (i == 0) {
+					rho_0 = num;
+				}
+				else if (i == 1) {
+					visc_const = num;
+				}
+				else if (i == 2) {
+					st_const = num;
+				}
+				else if (i == 3) {
+					epsilon = num;
+				}
+				else if (i == 4) {
+					cs = num;
+				}
+			}
+			row = new char[256];
+			row_buff_index = 0;
+		}
+		else if (write2line != 10) {
+			row[row_buff_index] = write2line;
+			row_buff_index++;
+		}
+
+
+
+	}
+
+	row = new char[256];
+	row_buff_index = 0;
+	phys_props.close();
+
+	//reading initial conditions
+	std::ifstream init_conds(initial_conditions_path);
+	
+	for (char write2line; init_conds.get(write2line);) {
+		if (init_conds.eof()) {
+			break;
+		}
+
+		if (write2line == 10) {
+
+			int i = 0;
+
+			for (i; i < init_cond_size; i++) {
+				if (strstr(row, init_cond_names[i]) != nullptr) {
+					break;
+				}
+			}
+			if (i < init_cond_size) {
+				if (strstr(row, "[") != nullptr) {
+					bool save_char = false;
+					int axis_count = 0;
+					for (int j = 0; j < strlen(row); j++) {
+						if (axis_count > 2) {
+							axis_count = 0;
+							break;
+						}
+						if (row[j] == 91) {
+							save_char = true;
+							for (int k = j; k < strlen(row); k++) {
+								if (!isdigit(row[k + 1])) {
+									j++;
+								}
+								else { break; }
+							}
+						}
+						else if (row[j] == 44 || row[j] == 93) {
+							num = atof(num_buffer);
+							if (axis_count == 0) {
+								vec.x = num;
+							} else if (axis_count == 1) {
+								vec.y = num;
+							}
+							else if (axis_count == 2) {
+								vec.z = num;
+							}
+							axis_count++;
+
+							if (row[j] == 32) { 
+								j++; 
+								
+							}
+
+							num_buffer_index = 0;
+							num_buffer = new char[256];
+						}
+						else if ((isdigit(row[j]) || row[j] == 46 || row[j] == 45) && save_char) {
+							num_buffer[num_buffer_index] = row[j];
+							num_buffer_index++;
+						}
+					}
+				}
+				else {
+					bool save_char = false;
+					for (int j = 0; j < strlen(row); j++) {
+						if (row[j] == 61) {
+							save_char = true;
+							for (int k = j; k < strlen(row); k++) {
+								if (!isdigit(row[k + 1])) {
+									j++;
+								}
+								else { break; }
+							}
+						}
+						else if (row[j] == 59) {
+							num = atof(num_buffer);
+							num_buffer_index = 0;
+							num_buffer = new char[256];
+							break;
+						}
+						else if ((isdigit(row[j]) || row[j] == 46 || row[j] == 45) && save_char) {
+							num_buffer[num_buffer_index] = row[j];
+							num_buffer_index++;
+						}
+
+					}
+				}
+
+
+				if (i == 0) {
+					PARTICLE_RADIUS = num;
+				}
+				else if (i == 1) {
+					USER_MASS = num;
+				}
+				else if (i == 2) {
+					F_INITIAL_POSITION[0] = vec.x;
+					F_INITIAL_POSITION[1] = vec.y;
+					F_INITIAL_POSITION[2] = vec.z;
+				}
+				else if (i == 3) {
+					F_FINAL_POSITION[0] = vec.x;
+					F_FINAL_POSITION[1] = vec.y;
+					F_FINAL_POSITION[2] = vec.z;
+				}
+				else if (i == 4) {
+					B_INITIAL_POSITION[0] = vec.x;
+					B_INITIAL_POSITION[1] = vec.y;
+					B_INITIAL_POSITION[2] = vec.z;
+				}
+				else if (i == 5) {
+					B_FINAL_POSITION[0] = vec.x;
+					B_FINAL_POSITION[1] = vec.y;
+					B_FINAL_POSITION[2] = vec.z;
+				}
+				else if (i == 6) {
+					V_INITIAL[0] = vec.x;
+					V_INITIAL[1] = vec.y;
+					V_INITIAL[2] = vec.z;
+				}
+				else if (i == 7) {
+					vol_comp_perc = num;
+				}
+				else if (i == 8) {
+					dens_fluc_perc = num;
+				}
+			}
+			row = new char[256];
+			row_buff_index = 0;
+		}
+		else if (write2line != 10) {
+			row[row_buff_index] = write2line;
+			row_buff_index++;
+		}
+
+
+
+	}
+
+	row = new char[256];
+	row_buff_index = 0;
+	init_conds.close();
+
+	std::ifstream system_vars(system_path);
+
+	for (char write2line; system_vars.get(write2line);) {
+		if (system_vars.eof()) {
+			break;
+		}
+
+		if (write2line == 10) {
+
+			int i = 0;
+
+			for (i; i < system_size; i++) {
+				if (strstr(row, system_names[i]) != nullptr) {
+					break;
+				}
+			}
+			if (i < system_size) {
+				bool save_char = false;
+				for (int j = 0; j < strlen(row); j++) {
+					if (row[j] == 61) {
+						save_char = true;
+						for (int k = j; k < strlen(row); k++) {
+							if (!isdigit(row[k + 1])) {
+								j++;
+							}
+							else { break; }
+						}
+					}
+					else if (row[j] == 59) {
+						num = atof(num_buffer);
+						num_buffer_index = 0;
+						num_buffer = new char[256];
+						break;
+					}
+					else if ((isdigit(row[j]) || row[j] == 46 || row[j] == 45) && save_char) {
+						num_buffer[num_buffer_index] = row[j];
+						num_buffer_index++;
+					}
+
+				}
+
+				if (i == 0) {
+					delta_t = num;
+				}
+				else if (i == 1) {
+					simulation_time = num;
+				}
+				else if (i == 2) {
+					final_time = num;
+				}
+				else if (i == 3) {
+					particles_per_row = num;
+				}
+
+			}
+			row = new char[256];
+			row_buff_index = 0;
+		}
+		else if (write2line != 10) {
+			row[row_buff_index] = write2line;
+			row_buff_index++;
+		}
+
+	}
+
+	return 0;
+}
 
 int initialize() {
+	
+	cudaDeviceProp* prop = new cudaDeviceProp;
+	gpuErrchk(cudaGetDeviceProperties(prop,0));
+	std::cout << "-----------------------------------------------\n";
+	std::cout << "DEVICE PROPERTIES:\n" << "Device name: " << prop->name << "\n" <<
+		"Max number of threads per block: " << prop->maxThreadsPerBlock << "\n" <<
+		"Total global memory: " << dround(prop->totalGlobalMem/1e9,2) << " gigabytes\n" <<
+		"Registers per block: " << prop->regsPerBlock << "\n" << 
+		"Shared Memory per block: " << prop->sharedMemPerBlock << " bytes\n" <<
+		"-----------------------------------------------\n";
+
+	block_size = prop->maxThreadsPerBlock;
+
+	max_vol_comp = rho_0 * vol_comp_perc / 100;
+	max_rho_fluc = max_vol_comp * dens_fluc_perc / 100;
+
+	if (USER_MASS == 0) {
+		MASS_calc = rho_0 * (float)M_PI * pow(PARTICLE_RADIUS, 3.f) / 3.f * 4.f;
+	}
+	else {
+		MASS_calc = USER_MASS;
+	}
+
+	PARTICLE_DIAMETER = 2 * PARTICLE_RADIUS;
 
 	// get main path of simulation
 
@@ -208,7 +546,7 @@ int initialize() {
 	Hash b_hash(hashtable_size);
 	const int particles_per_row = 200;
 	pitch = 0;
-	hashtable = new int[hashtable_size * particles_per_row];
+	int* hashtable = new int[hashtable_size * particles_per_row];
 	for (int i = 0; i < hashtable_size; ++i) {
 		for (int j = 0; j < particles_per_row; j++) {
 			hashtable[i * particles_per_row + j] = -1;
@@ -294,20 +632,22 @@ int initialize() {
 	Grad_W.x = 0.f;
 	Grad_W.y = 0.f;
 	Grad_W.z = 0.f;
-	float dot_Grad_W = 0;
+	float dot_Grad_W = 0.f;
 	for (int i = 0; i < count; i++) {
 		r_vector.x = tmp_points[i].x - selected_point.x;
 		r_vector.y = tmp_points[i].y - selected_point.y;
 		r_vector.z = tmp_points[i].z - selected_point.z;
 		r = sqrt(r_vector.x* r_vector.x + r_vector.y* r_vector.y + r_vector.z* r_vector.z);
 
-		vec3d inst_Grad_W = Poly6_Gradient(selected_index, i, tmp_points, r, h, invh);
+		if (r <= h) {
+			vec3d inst_Grad_W = Poly6_Gradient(selected_index, i, tmp_points, r, h, invh);
 
-		Grad_W.x += inst_Grad_W.x;
-		Grad_W.y += inst_Grad_W.y;
-		Grad_W.z += inst_Grad_W.z;
+			Grad_W.x += inst_Grad_W.x;
+			Grad_W.y += inst_Grad_W.y;
+			Grad_W.z += inst_Grad_W.z;
 
-		dot_Grad_W = dot_product(inst_Grad_W, inst_Grad_W);
+			dot_Grad_W += dot_product(inst_Grad_W, inst_Grad_W);
+		}
 
 	}
 
@@ -348,9 +688,9 @@ int initialize() {
 	
 	vec3d* VELOCITY = (vec3d*)malloc(3*N*sizeof(float));
 	for (int i = 0; i < N; i++) {
-		VELOCITY[i].x = 0.f;
-		VELOCITY[i].y = 0.f;
-		VELOCITY[i].z = 0.f;
+		VELOCITY[i].x = V_INITIAL[0];
+		VELOCITY[i].y = V_INITIAL[1];
+		VELOCITY[i].z = V_INITIAL[2];
 	}
 
 	gpuErrchk(cudaMalloc((void**)&d_VELOCITY, 3*N*sizeof(float)));
@@ -416,7 +756,7 @@ int initialize() {
 	gpuErrchk(cudaMemcpy(d_DENSITY, DENSITY, N * sizeof(float), cudaMemcpyHostToDevice));
 
 	//Defining and allocating main pressure array
-	PRESSURE = (float*)malloc(N * sizeof(float));
+	float* PRESSURE = (float*)malloc(N * sizeof(float));
 	for (int i = 0; i < N; i++) {
 		PRESSURE[i] = 0;
 	}
@@ -497,14 +837,15 @@ int initialize() {
 	}
 
 	gpuErrchk(cudaMallocPitch(&d_hashtable, &pitch, particles_per_row * sizeof(int), hashtable_size));
+	gpuErrchk(cudaMemcpy2D(d_hashtable, pitch, hashtable, particles_per_row * sizeof(int), particles_per_row * sizeof(int), hashtable_size, cudaMemcpyHostToDevice));
 
-	writeTimeKeeper(main_path, simulation_time, iteration);
+	writeTimeKeeper(main_path);
 
-	std::cout << N << " Fluid particles and " << B << " boundary particles.\n"
+	std::cout << N << " Fluid particles\n"
+		<< B << " Boundary particles\n"
 		<< "Total of " << T << " particles.\n"
 		<< "Smoothing radius = " << h << " m.\n"
-		<< "hashtable size = " << hashtable_size << "\n"
-		<< "----------------------------------------------------------------\n\n";
+		<< "hashtable size = " << hashtable_size << "\n";
 
 	return 0;
 }
@@ -513,8 +854,9 @@ int mainLoop() {
 
 	Hash hash(hashtable_size);
 
+	grid_size = hashtable_size / block_size + 1;
+	hashtableReset << <grid_size, block_size >> > (d_hashtable, particles_per_row, pitch, hashtable_size);
 	grid_size = T / block_size + 1;
-	gpuErrchk(cudaMemcpy2D(d_hashtable, pitch, hashtable, particles_per_row * sizeof(int), particles_per_row * sizeof(int), hashtable_size, cudaMemcpyHostToDevice));
 	hashParticlePositions << <grid_size, block_size >> > (d_hashtable, d_POSITION, invh, hash, T, pitch, particles_per_row);
 
 	grid_size = N / block_size + 1;
@@ -523,9 +865,10 @@ int mainLoop() {
 	gpuErrchk(cudaPeekAtLastError());
 
 	//reseting values of pressure
-	gpuErrchk(cudaMemcpy(d_PRESSURE, PRESSURE, N * sizeof(float), cudaMemcpyHostToDevice));
+	resetPressure << <grid_size, block_size >> > (d_PRESSURE, N);
 
 	float pressure_coeff = -1 / (2 * powf(MASS_calc * delta_t / rho_0, 2) * pressure_delta);
+	/*std::cout << pressure_coeff << std::endl;*/
 	int _k_ = 0;
 	max_rho_err = std::numeric_limits<float>::infinity();
 	while (_k_ < 3) {
@@ -533,8 +876,9 @@ int mainLoop() {
 		
 		positionAndVelocity << <grid_size, block_size >> > (d_PRED_POSITION,d_PRED_VELOCITY,d_POSITION, d_VELOCITY, d_PRESSURE_FORCE, d_VISCOSITY_FORCE, d_ST_FORCE, gravity, d_MASS, delta_t, N);
 
+		grid_size = hashtable_size / block_size + 1;
+		hashtableReset << <grid_size, block_size >> >(d_hashtable, particles_per_row, pitch, hashtable_size);
 		grid_size = T / block_size + 1;
-		gpuErrchk(cudaMemcpy2D(d_hashtable, pitch, hashtable, particles_per_row * sizeof(int), particles_per_row * sizeof(int), hashtable_size, cudaMemcpyHostToDevice));
 		hashParticlePositions << <grid_size, block_size >> > (d_hashtable, d_PRED_POSITION, invh, hash, T, pitch, particles_per_row);
 
 		grid_size = N / block_size + 1;
@@ -564,9 +908,7 @@ int mainLoop() {
 	float max_velocity = 0.f;
 	float max_force = 0.f;
 	float sum_rho_err = 0.f;
-	gpuErrchk(cudaMemcpy(d_max_velocity, &max_velocity, sizeof(float), cudaMemcpyHostToDevice));
-	gpuErrchk(cudaMemcpy(d_max_force, &max_force, sizeof(float), cudaMemcpyHostToDevice));
-	gpuErrchk(cudaMemcpy(d_sum_rho_err, &sum_rho_err, sizeof(float), cudaMemcpyHostToDevice));
+	resetValues<<<1,1>>>(d_max_velocity, d_max_force, d_sum_rho_err);
 	grid_size = N / block_size + 1;
 	getMaxVandF << <grid_size, block_size >> > (d_max_velocity, d_max_force, d_VELOCITY, d_PRESSURE_FORCE, d_VISCOSITY_FORCE, d_ST_FORCE, gravity, d_MASS,d_DENSITY,d_sum_rho_err, rho_0, N);
 	gpuErrchk(cudaPeekAtLastError());
@@ -603,10 +945,6 @@ int mainLoop() {
 	criteria2 = max_rho_err > max_rho_fluc;
 	criteria3 = 0.45f * (h/max_velocity) < delta_t;
 
-	criteria3 = false;
-	criteria2 = false;
-	criteria1 = false;
-
 	if (criteria1 || criteria2 || criteria3) {
 
 		std::cout << "\nSHOCK DETECTED! RETURNING 2 ITERATIONS!\n" << std::endl;
@@ -635,7 +973,7 @@ int mainLoop() {
 
 		readVTU(iter_path, position, velocity);
 
-		getNewSimTime(main_path, &simulation_time, iteration);
+		getNewSimTime(main_path);
 
 		gpuErrchk(cudaMemcpy(d_POSITION, position, 3 * N * sizeof(float), cudaMemcpyHostToDevice));
 		gpuErrchk(cudaMemcpy(d_VELOCITY, velocity, 3 * N * sizeof(float), cudaMemcpyHostToDevice));
@@ -652,7 +990,7 @@ int mainLoop() {
 	simulation_time += delta_t;
 	iteration++;
 
-	writeTimeKeeper(main_path, simulation_time, iteration);
+	writeTimeKeeper(main_path);
 
 	return 0;
 }

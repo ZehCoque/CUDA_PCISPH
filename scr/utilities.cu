@@ -168,7 +168,7 @@ void cudaAtributes(void *dev_ptr) {
 	return;
 }
 
-void writeTimeKeeper(char* main_path, float simulation_time, int iteration) {
+void writeTimeKeeper(char* main_path) {
 
 	char buffer[1024];
 	strcpy(buffer, main_path);
@@ -183,7 +183,7 @@ void writeTimeKeeper(char* main_path, float simulation_time, int iteration) {
 
 }
 
-void getNewSimTime(char* main_path, float *simulation_time, int iteration) {
+void getNewSimTime(char* main_path) {
 
 	char buff1[100];
 	strcpy(buff1, main_path);
@@ -237,7 +237,7 @@ void getNewSimTime(char* main_path, float *simulation_time, int iteration) {
 		}
 	}
 
-	simulation_time[0] = (float)atof(num_buffer);
+	simulation_time = (float)atof(num_buffer);
 	time_keeper.close();
 	time_keeper2.close();
 	remove(time_keeper_path);
@@ -278,3 +278,4 @@ void displayProgress(std::chrono::high_resolution_clock::time_point start) {
 
 	return;
 }
+
