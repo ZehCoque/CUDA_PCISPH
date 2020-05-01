@@ -1,7 +1,7 @@
 #include "common.cuh"
 #include "global_variables.cuh"
 #include "utilities.cuh"
-#include "chrono"
+#include <chrono>
 
 int initialize();
 
@@ -11,8 +11,8 @@ void multiprocessor_writer();
 
 int main(void)
 {
-	auto started = std::chrono::high_resolution_clock::now();
-	std::cout << "INITIALIZING\n";
+	std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
+	std::cout << "INITIALIZING...\n";
 	int init = initialize();
 	//system("CLS");
 	if (init != 0) {
@@ -22,18 +22,8 @@ int main(void)
 
 	while (simulation_time < final_time)
 	{
-		float progress = simulation_time / final_time;
-		int barWidth = 70;
-		std::cout << "[";
-		int pos = barWidth * progress;
-		for (int i = 0; i < barWidth; ++i) {
-			if (i < pos) std::cout << "=";
-			else if (i == pos) std::cout << ">";
-			else std::cout << " ";
-		}
-		std::cout << "] " << dround(progress * 100.0 , 2) << " %\r";
-		std::cout.flush();
-
+		std::cout << "PROGRESS:" << std::endl;
+		displayProgress(start);
 		int main_loop = mainLoop();
 
 		if (main_loop != 0) {
@@ -47,7 +37,7 @@ int main(void)
 	//for (int i = 0; i < 11; i++) {
 	//	testFunc();
 	//}
-	auto end = std::chrono::high_resolution_clock::now();
+	std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
 	cudaDeviceReset();
 
 	return 0;

@@ -84,6 +84,7 @@ int grid_size;
 float* d_max_force;
 float* d_max_velocity;
 float* d_max_rho_err;
+float* d_sum_rho_err;
 float delta_t = 0.002f;
 float max_vol_comp = rho_0 * 0.01;
 float max_rho_fluc = max_vol_comp * 10;
@@ -336,8 +337,9 @@ int initialize() {
 	gpuErrchk(cudaMalloc((void**)&d_POSITION, 3*T*sizeof(float)));
 	gpuErrchk(cudaMemcpy(d_POSITION, POSITION, 3*T*sizeof(float), cudaMemcpyHostToDevice));
 
-	//Allocating memory for predicted positions
+	//Allocating memory for predicted positions and copying previous position vectors
 	gpuErrchk(cudaMalloc((void**)&d_PRED_POSITION, 3 * T * sizeof(float)));
+	gpuErrchk(cudaMemcpy(d_PRED_POSITION, POSITION, 3 * T * sizeof(float), cudaMemcpyHostToDevice));
 
 	//Allocating memory for predicted velocity
 	gpuErrchk(cudaMalloc((void**)&d_PRED_VELOCITY, 3 * N * sizeof(float)));
@@ -459,6 +461,9 @@ int initialize() {
 	//Defining and allocating memory to store max velocity value
 	gpuErrchk(cudaMalloc((void**)&d_max_velocity, sizeof(float)));
 
+	//Defining and allocating memory to store summation of density errors to calculate average error
+	gpuErrchk(cudaMalloc((void**)&d_sum_rho_err, sizeof(float)));
+
 	//defining gravity vector
 	gravity.x = 0.f;
 	gravity.y = -9.81f;
@@ -525,15 +530,16 @@ int mainLoop() {
 	max_rho_err = std::numeric_limits<float>::infinity();
 	while (_k_ < 3) {
 		max_rho_err = 0;
-		grid_size = N / block_size + 1;
 		
 		positionAndVelocity << <grid_size, block_size >> > (d_PRED_POSITION,d_PRED_VELOCITY,d_POSITION, d_VELOCITY, d_PRESSURE_FORCE, d_VISCOSITY_FORCE, d_ST_FORCE, gravity, d_MASS, delta_t, N);
-		collisionHandler << <grid_size, block_size >> > (d_PRED_POSITION, d_PRED_VELOCITY, d_NORMAL, d_TYPE, d_hashtable, h, invh, pitch, hash, particles_per_row, BOUNDARY_DIAMETER, epsilon, N);
 
 		grid_size = T / block_size + 1;
 		gpuErrchk(cudaMemcpy2D(d_hashtable, pitch, hashtable, particles_per_row * sizeof(int), particles_per_row * sizeof(int), hashtable_size, cudaMemcpyHostToDevice));
 		hashParticlePositions << <grid_size, block_size >> > (d_hashtable, d_PRED_POSITION, invh, hash, T, pitch, particles_per_row);
 
+		grid_size = N / block_size + 1;
+		collisionHandler << <grid_size, block_size >> > (d_PRED_POSITION, d_PRED_VELOCITY, d_NORMAL, d_TYPE, d_hashtable, h, invh, pitch, hash, particles_per_row, BOUNDARY_DIAMETER, epsilon, N);
+		
 		gpuErrchk(cudaMemcpy(d_max_rho_err, &max_rho_err, sizeof(float), cudaMemcpyHostToDevice));
 		DensityCalc << <grid_size, block_size >> > (d_max_rho_err, d_PRED_POSITION, d_MASS, d_DENSITY, h, invh, rho_0, particles_per_row, pitch, d_hashtable, hash, N);
 		gpuErrchk(cudaMemcpy(&max_rho_err, d_max_rho_err, sizeof(float), cudaMemcpyDeviceToHost));
@@ -557,30 +563,18 @@ int mainLoop() {
 
 	float max_velocity = 0.f;
 	float max_force = 0.f;
+	float sum_rho_err = 0.f;
 	gpuErrchk(cudaMemcpy(d_max_velocity, &max_velocity, sizeof(float), cudaMemcpyHostToDevice));
 	gpuErrchk(cudaMemcpy(d_max_force, &max_force, sizeof(float), cudaMemcpyHostToDevice));
+	gpuErrchk(cudaMemcpy(d_sum_rho_err, &sum_rho_err, sizeof(float), cudaMemcpyHostToDevice));
 	grid_size = N / block_size + 1;
-	getMaxVandF << <grid_size, block_size >> > (d_max_velocity, d_max_force, d_VELOCITY, d_PRESSURE_FORCE, d_VISCOSITY_FORCE, d_ST_FORCE, gravity, d_MASS, N);
-
-	max_rho_err_t_1 = max_rho_err;
-	float avg_rho_err;
-	float sum_rho_err = 0.f;
-	for (int i = 0; i < N; i++) {
-		float rho_err = DENSITY[i] - rho_0;
-		if (rho_err > 0) {
-			if (rho_err > max_rho_err) {
-				max_rho_err = rho_err;
-			}
-			sum_rho_err += rho_err;
-		}
-	}
-
-	avg_rho_err = sum_rho_err / N;
-
+	getMaxVandF << <grid_size, block_size >> > (d_max_velocity, d_max_force, d_VELOCITY, d_PRESSURE_FORCE, d_VISCOSITY_FORCE, d_ST_FORCE, gravity, d_MASS,d_DENSITY,d_sum_rho_err, rho_0, N);
 	gpuErrchk(cudaPeekAtLastError());
-	gpuErrchk(cudaDeviceSynchronize());
 	gpuErrchk(cudaMemcpy(&max_velocity, d_max_velocity, sizeof(float), cudaMemcpyDeviceToHost));
 	gpuErrchk(cudaMemcpy(&max_force, d_max_force, sizeof(float), cudaMemcpyDeviceToHost));
+	gpuErrchk(cudaMemcpy(&sum_rho_err, d_sum_rho_err, sizeof(float), cudaMemcpyDeviceToHost));
+
+	float avg_rho_err = sum_rho_err / N;
 
 	// delta_t increase
 	bool criteria1 = 0.19f * sqrt(h / max_force) > delta_t;
@@ -608,7 +602,11 @@ int mainLoop() {
 	criteria1 = max_rho_err - max_rho_err_t_1 > 8 * max_vol_comp;
 	criteria2 = max_rho_err > max_rho_fluc;
 	criteria3 = 0.45f * (h/max_velocity) < delta_t;
+
 	criteria3 = false;
+	criteria2 = false;
+	criteria1 = false;
+
 	if (criteria1 || criteria2 || criteria3) {
 
 		std::cout << "\nSHOCK DETECTED! RETURNING 2 ITERATIONS!\n" << std::endl;

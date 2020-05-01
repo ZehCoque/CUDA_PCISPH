@@ -511,6 +511,10 @@ __global__ void positionAndVelocity(vec3d* points1,vec3d* velocities1, vec3d* po
 	points1[index].y = points2[index].y + delta_t * velocities1[index].y;
 	points1[index].z = points2[index].z + delta_t * velocities1[index].z;
 
+
+	//printf("[%g %g %g] [%g %g %g]", velocities1[index].x, velocities1[index].y, velocities1[index].z, points1[index].x, points1[index].y, points1[index].z);
+	
+
 	return;
 }
 
@@ -633,7 +637,9 @@ __global__ void DensityCalc(float* max_rho_err, vec3d* points, float* mass, floa
 						if (row[t] != -1) {
 							float r = distance(points[index], points[row[t]]);
 							if (r <= h) {
-								density[index] += mass[index] * Poly6_Kernel(r, h, invh);
+								density[index] += mass[row[t]] * Poly6_Kernel(r, h, invh);
+								//printf("row[t] = %d density = %g mass = % r = %g\n", row[t], density[index], mass[row[t]], r);
+								
 							}
 						}
 					}
@@ -720,7 +726,7 @@ __global__ void PressureForceCalc(vec3d* points, vec3d* pressure_force,float* pr
 	return;
 }
 
-__global__ void getMaxVandF(float* max_velocity, float* max_force, vec3d* velocities, vec3d* pressure_force, vec3d* viscosity_force, vec3d* st_force, vec3d gravity,float* mass,int size) {
+__global__ void getMaxVandF(float* max_velocity, float* max_force, vec3d* velocities, vec3d* pressure_force, vec3d* viscosity_force, vec3d* st_force, vec3d gravity,float* mass,float* density,float* sum_rho_error,float rho_0,int size) {
 
 	int index = getGlobalIdx_1D_1D();
 
@@ -742,6 +748,11 @@ __global__ void getMaxVandF(float* max_velocity, float* max_force, vec3d* veloci
 	atomicMaxFloat(max_force, fmaxf(max_p,fmaxf(max_v,fmaxf(max_st,max_g))));
 	atomicMaxFloat(max_velocity, maxValueInVec3D(velocities[index]));
 
+	float rho_err = density[index] - rho_0;
+
+	if (rho_err > 0) {
+		atomicAddFloat(sum_rho_error, rho_err);
+	}
 
 	return;
 }

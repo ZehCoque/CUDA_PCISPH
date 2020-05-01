@@ -1,6 +1,8 @@
 #pragma once
 #include "common.cuh"
+#include <chrono>
 #include <cuda_runtime.h>
+#include "global_variables.cuh"
 //struct stat info;
 int fileExists(const char* const path);
 
@@ -21,3 +23,5 @@ void writeTimeKeeper(char* main_path, float simulation_time, int iteration);
 void getNewSimTime(char* main_path, float *simulation_time, int iteration);
 
 double dround(double val, int dp);
+
+void displayProgress(std::chrono::high_resolution_clock::time_point start);

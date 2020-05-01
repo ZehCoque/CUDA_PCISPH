@@ -254,3 +254,31 @@ double dround(double val, int dp) {
 	free(buffer);
 	return result;
 }
+
+void displayProgress(std::chrono::high_resolution_clock::time_point start) {
+	
+	//printf("\033[2J");
+	//printf("\033[%d;%dH", 0, 0);
+
+	float progress = simulation_time / final_time;
+
+	int barWidth = 15;
+	std::cout << "[";
+	int pos = barWidth * progress;
+	for (int i = 0; i < barWidth; ++i) {
+		if (i < pos) std::cout << "=";
+		else if (i == pos) std::cout << ">";
+		else std::cout << " ";
+	}
+	
+	std::chrono::high_resolution_clock::time_point current_time = std::chrono::high_resolution_clock::now();
+	std::chrono::high_resolution_clock::time_point;
+	auto elapsed_time = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start).count();
+
+	std::cout << std::flush;
+	std::cout << "] " << dround(progress * 100.0, 2) << "% | " << 
+		"Elapsed time: "<< elapsed_time << " s | Time step: " << delta_t * 1000 << " ms | Iteration Number: " << iteration << " | Max Density Error: " << max_rho_err << "\r" << std::flush;
+	//std::cout.flush();
+
+	return;
+}

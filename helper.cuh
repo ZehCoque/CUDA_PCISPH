@@ -69,3 +69,16 @@ __device__ float maxValueInVec3D(vec3d vec) {
 	return fmaxf(vec.x, fmaxf(vec.y, vec.z));
 
 }
+
+__device__ __forceinline__ float atomicAddFloat(float* address, float val)
+{
+	// Doing it all as longlongs cuts one __longlong_as_double from the inner loop
+	unsigned int* ptr = (unsigned int*)address;
+	unsigned int old, newint, ret = *ptr;
+	do {
+		old = ret;
+		newint = __float_as_int(__int_as_float(old) + val);
+	} while ((ret = atomicCAS(ptr, old, newint)) != old);
+
+	return __int_as_float(ret);
+}
