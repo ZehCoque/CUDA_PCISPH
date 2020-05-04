@@ -46,19 +46,30 @@ __device__ float Viscosity_Laplacian(float r, float h, float invh)
 	return 14.32394487f * powf(invh,6) * (h-r);
 }
 
-__device__ float ST_Kernel(float r, float h,float invh)
+__device__ float ST_Kernel(float r, float h,float invh, int type)
 {
-	float tmp = 10.1859163578f * powf(invh, 9);
+	if (type == 0) {
+		float tmp = 10.1859163578f * powf(invh, 9);
 
-	if (2.f * r > h && r <= h) {
-		return tmp * (h - r) * (h - r) * (h - r) * r * r * r;
+		if (2.f * r > h && r <= h) {
+			return tmp * (h - r) * (h - r) * (h - r) * r * r * r;
+		}
+		else if (r > 0.f && 2.f * r <= h) {
+			return tmp * (2.f * (h - r) * (h - r) * (h - r) * r * r * r - powf(h, 6) * 0.015625f);
+		}
+		else {
+			return 0.f;
+		}
 	}
-	else if (r > 0.f && 2.f * r <= h) {
-		return tmp * (2.f * (h - r) * (h - r) * (h - r) * r * r * r - powf(h,6) * 0.015625f);
+	else if (type == 1) {
+		if (2.f * r > h || r <= h) {
+			return 0.007 * powf(invh, 3.25f) * powf(-4 * powf(r, 2) * invh + 6 * r - 2 * h, 0.25f);
+		}
+		else {
+			return 0.f;
+		}
 	}
-	else {
-		return 0.f;
-	}
+
 
 }
 
