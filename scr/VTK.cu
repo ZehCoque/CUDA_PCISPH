@@ -57,14 +57,14 @@ void VTU_Writer(char path[], int iteration, vec3d* points, int numberOfPoints, f
 
 	vtu_file << "</PointData>\n"
 		<< "<Cells>\n"
-		<< "<DataArray type=\"Float32\" Name=\"connectivity\" NumberOfComponents=\"1\" format=\"ascii\">\n";
+		<< "<DataArray type=\"Int32\" Name=\"connectivity\" NumberOfComponents=\"1\" format=\"ascii\">\n";
 
 	for (int i = 0; i < numberOfPoints; i++) {
 		vtu_file << i << std::endl;
 	}
 
 	vtu_file << "</DataArray>\n"
-		<< "<DataArray type=\"Float32\" Name=\"offsets\" NumberOfComponents=\"1\" format=\"ascii\">\n";
+		<< "<DataArray type=\"Int32\" Name=\"offsets\" NumberOfComponents=\"1\" format=\"ascii\">\n";
 	for (int i = 0; i < numberOfPoints; i++) {
 		vtu_file << i << " ";
 	}
