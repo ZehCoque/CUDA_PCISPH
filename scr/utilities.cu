@@ -87,16 +87,16 @@ char* getMainPath(char* main_path) {
 
 	char* PATH = new char[256];
 	strcpy(PATH, starter_path);
-	strcat(PATH, "/results");
+	strcat(PATH, "/");
 
 	if (dirExists(PATH) == 0) {
 		strcpy(main_path, starter_path);
-		strcat(main_path, "/results/simulation 1");
+		strcat(main_path, "/simulation 1");
 		return main_path;
 	}
 
 	strcpy(main_path, starter_path);
-	strcat(main_path, "/results/simulation 1");
+	strcat(main_path, "/simulation 1");
 
 	DIR* dir = opendir(PATH);
 
