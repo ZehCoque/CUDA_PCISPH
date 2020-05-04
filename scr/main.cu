@@ -49,6 +49,6 @@ int main(void)
 	//}
 	std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
 	cudaDeviceReset();
-
+	_getch();
 	return 0;
 }
