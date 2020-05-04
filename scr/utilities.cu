@@ -105,7 +105,7 @@ char* getMainPath(char* main_path) {
 	char tmp1[1024];
 	char tmp2[1024];
 	std::vector<int>arr;
-	strcpy(tmp1, "simulation");
+	strcpy(tmp1, "simulation ");
 	int integer;
 	while (entry != NULL)
 	{
