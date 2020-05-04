@@ -10,13 +10,17 @@ These instructions will get you a copy of the project up and running on your loc
 
 ### Prerequisites
 
-Your machine needs to be **CUDA capable**, i.e., it needs to have a CUDA-enabled Graphics Card Unit (GPU). For more info about CUDA-enabled GPUs, please refer to [NVIDIA official developer website](https://developer.nvidia.com/cuda-gpus).
+Your machine needs to be **CUDA capable**, i.e., it needs to have a CUDA-enabled Graphics Card Unit (GPU). For more info about CUDA-enabled GPUs, please refer to [NVIDIA official developer website](https://developer.nvidia.com/cuda-gpus) or the [CUDA page on Wikipedia](https://en.wikipedia.org/wiki/CUDA).
 
 Before proceeding with the CUDA installation, you should first intall the latest version of [Visual Studio](https://visualstudio.microsoft.com/) with **Desktop Development with C++*. For detailed info, refer to [this tutorial](https://www.youtube.com/watch?v=IsAoIqnNia4).
 
 After the installation of Visual Studio has been succesfully completed, if you have a CUDA-capable GPU, you must install the latest version of [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads). Select your OS and version accordingly, it does not matter if you choose _exe(local)_ or _exe(network)_. For detailed info and how to test installation, refer to [this tutorial](https://www.youtube.com/watch?v=cL05xtTocmY).
 
-After the installation of CUDA Toolkit, open Windows Command Prompt and type ```nvcc```.
+After the installation of CUDA Toolkit, open Windows Command Prompt and type ```nvcc --version```. You should get the following answer:
+
+```Copyright (c) 2005-2019 NVIDIA Corporation
+Built on Wed_Oct_23_19:32:27_Pacific_Daylight_Time_2019
+Cuda compilation tools, release 10.2, V10.2.89```
 
 ### Installing
 
