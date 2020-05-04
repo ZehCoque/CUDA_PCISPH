@@ -4,15 +4,19 @@ Predictive-Corrective Incompressible Smooth Particle Hydrodynamics developed for
 
 ## Getting Started
 
+**NOTE**: This project can only be run on **Windows OS**.
+
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
 
 ### Prerequisites
 
-What things you need to install the software and how to install them
+Your machine needs to be **CUDA capable**, i.e., it needs to have a CUDA-enabled Graphics Card Unit (GPU). For more info about CUDA-enabled GPUs, please refer to [NVIDIA official developer website](https://developer.nvidia.com/cuda-gpus).
 
-```
-Give examples
-```
+Before proceeding with the CUDA installation, you should first intall the latest version of [Visual Studio](https://visualstudio.microsoft.com/) with **Desktop Development with C++*. For detailed info, refer to [this tutorial](https://www.youtube.com/watch?v=IsAoIqnNia4).
+
+After the installation of Visual Studio has been succesfully completed, if you have a CUDA-capable GPU, you must install the latest version of [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads). Select your OS and version accordingly, it does not matter if you choose _exe(local)_ or _exe(network)_. For detailed info and how to test installation, refer to [this tutorial](https://www.youtube.com/watch?v=cL05xtTocmY).
+
+After the installation of CUDA Toolkit, open Windows Command Prompt and type ```nvcc```.
 
 ### Installing
 
@@ -44,43 +48,19 @@ Explain what these tests test and why
 Give an example
 ```
 
-### And coding style tests
-
-Explain what these tests test and why
-
-```
-Give an example
-```
-
 ## Deployment
 
 Add additional notes about how to deploy this on a live system
 
 ## Built With
 
-* [Dropwizard](http://www.dropwizard.io/1.0.2/docs/) - The web framework used
-* [Maven](https://maven.apache.org/) - Dependency Management
-* [ROME](https://rometools.github.io/rome/) - Used to generate RSS Feeds
+* [Visual Studio](https://visualstudio.microsoft.com/) - the latest version of Visual Studio with **C++ Desktop Development Tool**.
 
 ## Contributing
 
 Please read [CONTRIBUTING.md](https://gist.github.com/PurpleBooth/b24679402957c63ec426) for details on our code of conduct, and the process for submitting pull requests to us.
 
-## Versioning
-
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/your/project/tags). 
-
 ## Authors
 
-This project was developed by José Antonio Rico Coque in [West Pomeranian University of Technology](https://www.zut.edu.pl/uczelnia/aktualnosci.html) (ZUT) on the [Faculty of Mechanical Engineering and Mechatronics](https://wimim.zut.edu.pl/index.php?id=11909) with Professor Bartosz Powalka.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
-
-## Acknowledgments
-
-* Hat tip to anyone whose code was used
-* Inspiration
-* etc
+This project was developed by José Antonio Rico Coque and Bartosz Powalka in [West Pomeranian University of Technology](https://www.zut.edu.pl/uczelnia/aktualnosci.html) (ZUT) on the [Faculty of Mechanical Engineering and Mechatronics](https://wimim.zut.edu.pl/index.php?id=11909).
 
