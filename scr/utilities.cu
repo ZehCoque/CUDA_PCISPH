@@ -75,14 +75,28 @@ int extractIntegers(char* str) {
 }
 
 char* getMainPath(char* main_path) {
-	if (dirExists("results") == 0) {
-		strcpy(main_path, "./results/simulation 1");
+
+	char* starter_path = new char[256];
+
+	if (strlen(user_results_folder) == 0) {
+		starter_path = ".";
+	}
+	else {
+		starter_path = user_results_folder;
+	}
+
+	char* PATH = new char[256];
+	strcpy(PATH, starter_path);
+	strcat(PATH, "/results");
+
+	if (dirExists(PATH) == 0) {
+		strcpy(main_path, starter_path);
+		strcat(main_path, "/results/simulation 1");
 		return main_path;
 	}
 
-	strcpy(main_path, "./results/simulation ");
-
-	const char* PATH = "./results";
+	strcpy(main_path, starter_path);
+	strcat(main_path, "/results/simulation 1");
 
 	DIR* dir = opendir(PATH);
 

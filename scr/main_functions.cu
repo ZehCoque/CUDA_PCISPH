@@ -96,6 +96,7 @@ float pressure_delta;
 float max_rho_err_t_1 = 0.f;
 float max_rho_err;
 bool write_pvd = true;
+char* user_results_folder = new char[256];
 
 int fileReader() {
 
@@ -110,7 +111,7 @@ int fileReader() {
 	//names
 	char* phys_props_names[] = { "rho_0","visc_const","surface_tension_const","collision_dumping_coeff","fluid_sound_speed" };
 	char* init_cond_names[] = {"particle_radius","mass","fluid_initial_coord","fluid_final_coord","boundary_initial_coord","boundary_final_coord","fluid_initial_velocity","maximum_volume_compression","maximum_density_fluctuation"};
-	char* system_names[] = { "initial_delta_t","initial_time","final_time","neighbors_per_particle" };
+	char* system_names[] = { "initial_delta_t","initial_time","final_time","neighbors_per_particle","results_folder"};
 	
 	int phys_props_size = sizeof(phys_props_names) / 8;
 	int init_cond_size = sizeof(init_cond_names) / 8;
@@ -360,28 +361,52 @@ int fileReader() {
 			}
 			if (i < system_size) {
 				bool save_char = false;
-				for (int j = 0; j < strlen(row); j++) {
-					if (row[j] == 61) {
-						save_char = true;
-						for (int k = j; k < strlen(row); k++) {
-							if (!isdigit(row[k + 1])) {
-								j++;
+				if (strstr(row, "\"") != nullptr) {
+					for (int j = 0; j < strlen(row); j++) {
+						if (row[j] == 34 && !save_char) {
+							save_char = true;
+							for (int k = j; k < strlen(row); k++) {
+								if (row[k+1] == 32) {
+									j++;
+								}
+								else { break; }
 							}
-							else { break; }
 						}
-					}
-					else if (row[j] == 59) {
-						num = atof(num_buffer);
-						num_buffer_index = 0;
-						num_buffer = new char[256];
-						break;
-					}
-					else if ((isdigit(row[j]) || row[j] == 46 || row[j] == 45) && save_char) {
-						num_buffer[num_buffer_index] = row[j];
-						num_buffer_index++;
-					}
+						else if (row[j] == 34 && save_char) {
+							break;
+						}
+						else if (save_char){
+							num_buffer[num_buffer_index] = row[j];
+							num_buffer_index++;
+						}
 
+					}
 				}
+				else {
+					for (int j = 0; j < strlen(row); j++) {
+						if (row[j] == 61) {
+							save_char = true;
+							for (int k = j; k < strlen(row); k++) {
+								if (!isdigit(row[k + 1])) {
+									j++;
+								}
+								else { break; }
+							}
+						}
+						else if (row[j] == 59) {
+							num = atof(num_buffer);
+							num_buffer_index = 0;
+							num_buffer = new char[256];
+							break;
+						}
+						else if ((isdigit(row[j]) || row[j] == 46 || row[j] == 45) && save_char) {
+							num_buffer[num_buffer_index] = row[j];
+							num_buffer_index++;
+						}
+
+					}
+				}
+				
 
 				if (i == 0) {
 					delta_t = num;
@@ -395,6 +420,9 @@ int fileReader() {
 				else if (i == 3) {
 					particles_per_row = num;
 				}
+				else if (i == 4) {
+					user_results_folder = num_buffer;
+				}
 
 			}
 			row = new char[256];
@@ -406,6 +434,8 @@ int fileReader() {
 		}
 
 	}
+
+
 
 	return 0;
 }
