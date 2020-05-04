@@ -52,7 +52,10 @@ This project was developed by ***José Antonio Rico Coque*** and ***Bartosz Powal
 
 [3](https://people.inf.ethz.ch/~sobarbar/papers/Sol12/Sol12.pdf) Akinci, N., Ihmsen, M., Akinci, G., Solenthaler, B. & Teschner, M. Versatile Rigid-Fluid Coupling for Incompressible SPH. 
 
-[4](https://github.com/openworm/sibernetic) Sibernetic
+[4](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.462.8293&rep=rep1&type=pdf) Akinci, N., Akinci, G. & Teschner, M. Versatile surface tension and adhesion for SPH fluids. ACM Trans. Graph. 32, 1–8 (2013).
+
+[5](https://www.researchgate.net/publication/287403043_Sibernetic_A_software_complex_based_on_the_PCI_SPH_algorithm_aimed_at_simulation_problems_in_biomechanics?enrichId=rgreq-d8f63fd5090046989fd70b947df48139-XXX&enrichSource=Y292ZXJQYWdlOzI4NzQwMzA0MztBUzo2Njk4NzU4Mjc2NjY5NTFAMTUzNjcyMjI1MTU4OA%3D%3D&el=1_x_3&_esc=publicationCoverPdf) Palyanov, A. & Khayrulin, S. Sibernetic: A software complex based on the PCI SPH algorithm aimed at simulation problems in biomechanics. Russian Journal of Genetics: Applied Research 5, 635–641 (2015).
+
 
 
 

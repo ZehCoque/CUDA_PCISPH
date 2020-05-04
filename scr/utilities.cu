@@ -279,3 +279,71 @@ void displayProgress(std::chrono::high_resolution_clock::time_point start) {
 	return;
 }
 
+void rewritePVD(char* main_path) {
+
+	char* num_buff = new char[32];
+	itoa(iteration, num_buff, 10);
+	char search_char[64];
+	strcpy(search_char, "iter");
+	strcat(search_char, num_buff);
+
+	char pvd_path[256];
+	strcpy(pvd_path, main_path);
+	strcat(pvd_path, "/PCISPH.pvd");
+
+	char pvd_path_cpy[256];
+	strcpy(pvd_path_cpy, main_path);
+	strcat(pvd_path_cpy, "/PCISPH2.pvd");
+
+	std::ifstream pvd1(pvd_path);
+
+	std::ofstream pvd2;
+	pvd2.open(pvd_path_cpy);
+
+	char* row = new char[1024];
+	int row_index = 0;
+	for (char write2line; pvd1.get(write2line);) {
+	
+		pvd2 << write2line;
+		row[row_index] = write2line;
+
+		if (write2line == 10) {
+			if (strstr(row, search_char) != nullptr) {
+				break;
+			}
+			else {
+				row = new char[1024];
+				row_index = 0;
+			}
+		}
+
+	}
+
+	pvd2 << "</Collection>\n"
+		 << "</VTKFile>";
+
+	pvd1.close();
+	pvd2.close();
+
+	remove(pvd_path);
+	rename(pvd_path, pvd_path_cpy);
+
+	for (int i = 1; i < 4; i++) {
+		num_buff = new char[32];
+		itoa(iteration + i, num_buff, 10);
+
+		char* vtu = new char[256];
+		strcpy(vtu, main_path);
+		strcat(vtu, "/vtu/iter");
+		strcat(vtu, num_buff);
+		strcat(vtu, ".vtu.");
+
+		if (fileExists(vtu) == 1) {
+			remove(vtu);
+		}
+	}
+
+	return;
+
+}
+

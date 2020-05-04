@@ -1,5 +1,5 @@
 start
-initial_delta_t = 0.002; *this can be overwritten in case any of the particles have initial velocity
+initial_delta_t = 0.0005; *this can be overwritten in case any of the particles have initial velocity
 initial_time = 0; *defined in seconds
 final_time = 10; *defined in seconds
 neighbors_per_particle = 200; *maximum number of possible neighbors per particle

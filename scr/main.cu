@@ -1,6 +1,7 @@
 #include "common.cuh"
 #include "global_variables.cuh"
 #include "utilities.cuh"
+#include <conio.h>
 #include <chrono>
 
 int fileReader();

@@ -95,6 +95,7 @@ float BOUNDARY_RADIUS;
 float pressure_delta;
 float max_rho_err_t_1 = 0.f;
 float max_rho_err;
+bool write_pvd = true;
 
 int fileReader() {
 
@@ -424,7 +425,7 @@ int initialize() {
 	block_size = prop->maxThreadsPerBlock;
 
 	max_vol_comp = rho_0 * vol_comp_perc / 100;
-	max_rho_fluc = max_vol_comp * dens_fluc_perc / 100;
+	max_rho_fluc = rho_0 * dens_fluc_perc / 100;
 
 	if (USER_MASS == 0) {
 		MASS_calc = rho_0 * (float)M_PI * pow(PARTICLE_RADIUS, 3.f) / 3.f * 4.f;
@@ -948,7 +949,7 @@ int mainLoop() {
 	if (criteria1 || criteria2 || criteria3) {
 
 		std::cout << "\nSHOCK DETECTED! RETURNING 2 ITERATIONS!\n" << std::endl;
-
+		write_pvd = false;
 		//SHOCK DETECTED
 		delta_t = fminf(0.2f * sqrt(h/max_force),0.25f*h/max_velocity);
 
@@ -974,6 +975,7 @@ int mainLoop() {
 		readVTU(iter_path, position, velocity);
 
 		getNewSimTime(main_path);
+		rewritePVD(main_path);
 
 		gpuErrchk(cudaMemcpy(d_POSITION, position, 3 * N * sizeof(float), cudaMemcpyHostToDevice));
 		gpuErrchk(cudaMemcpy(d_VELOCITY, velocity, 3 * N * sizeof(float), cudaMemcpyHostToDevice));
@@ -1041,9 +1043,12 @@ void multiprocessor_writer() {
 	//auto done = std::chrono::high_resolution_clock::now();
 
 	//std::cout << "Second VTU_Writer() -> " << std::chrono::duration_cast<std::chrono::milliseconds>(done - started).count() << " ms\n";
-	strcpy(buf, vtu_fullpath);
-
-	VTK_Group(vtk_group_path, buf, simulation_time);
+	
+	if (write_pvd == true) {
+		strcpy(buf, vtu_fullpath);
+		VTK_Group(vtk_group_path, buf, simulation_time);
+	}
+	write_pvd = true;
 	//write_vtu.get();
 	return;
 }

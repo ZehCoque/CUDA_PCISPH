@@ -458,7 +458,8 @@ __global__ void nonPressureForces(vec3d* points,vec3d* viscosity_force, vec3d* s
 							if (r <= h && r > 0) {
 
 								//Viscosity calculation
-								vec3d visc = ViscosityForce(index, row[t], mass, density, points, velocity, type[row[t]], cs,  h,  r, visc_const, Viscosity_Gradient(index, row[t],points, r, h, invh));
+								//vec3d visc = ViscosityForce(index, row[t], mass, density, points, velocity, type[row[t]], cs,  h,  r, visc_const, Viscosity_Gradient(index, row[t],points, r, h, invh));
+								vec3d visc = ViscosityForce(index, row[t], mass, density, velocity, type[row[t]], visc_const, Viscosity_Laplacian(r, h, invh));
 
 								//summation of calcualted value to main array
 								viscosity_force[index].x += visc.x;
