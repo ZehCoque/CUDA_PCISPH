@@ -127,18 +127,12 @@ char* getMainPath(char* main_path) {
 		return main_path;
 	}
 
-	// for (int i = 0; i<12;i++){
-	//     printf("%d\n", arr[0]);
-	// }
-
 	std::vector<int>::iterator max_value = std::max_element(arr.begin(), arr.end());
 	
-	printf("%d\n", max_value[0]);
-	//printf("%d\n", max_value[0] + 1);
+
 	char* buffer = new char[10];
 	itoa(max_value[0] + 1, buffer, 10);
-	printf("%s\n", buffer);
-	//printf("%s\n", buffer);
+
 	strcat(main_path, buffer);
 
 	return main_path;
