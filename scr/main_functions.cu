@@ -157,7 +157,7 @@ int fileReader() {
 						}
 					}
 					else if (row[j] == 59) {
-						num = atof(num_buffer);
+						num = (float)atof(num_buffer);
 						num_buffer_index = 0;
 						num_buffer = new char[256];
 						break;
@@ -237,7 +237,7 @@ int fileReader() {
 							}
 						}
 						else if (row[j] == 44 || row[j] == 93) {
-							num = atof(num_buffer);
+							num = (float)atof(num_buffer);
 							if (axis_count == 0) {
 								vec.x = num;
 							} else if (axis_count == 1) {
@@ -275,7 +275,7 @@ int fileReader() {
 							}
 						}
 						else if (row[j] == 59) {
-							num = atof(num_buffer);
+							num = (float)atof(num_buffer);
 							num_buffer_index = 0;
 							num_buffer = new char[256];
 							break;
@@ -394,7 +394,7 @@ int fileReader() {
 							}
 						}
 						else if (row[j] == 59) {
-							num = atof(num_buffer);
+							num = (float)atof(num_buffer);
 							num_buffer_index = 0;
 							num_buffer = new char[256];
 							break;
@@ -418,7 +418,7 @@ int fileReader() {
 					final_time = num;
 				}
 				else if (i == 3) {
-					particles_per_row = num;
+					particles_per_row = (int)num;
 				}
 				else if (i == 4) {
 					user_results_folder = num_buffer;
@@ -572,7 +572,7 @@ int initialize() {
 	cudaFree(D_FLUID_POSITIONS);
 
 	// HASHING ONLY FOR BOUNDARY PARTICLES
-	hashtable_size = pow(2, 19);
+	hashtable_size = powf(2, 19);
 
 	Hash b_hash(hashtable_size);
 	const int particles_per_row = 200;
