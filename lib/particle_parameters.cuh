@@ -467,7 +467,7 @@ __global__ void nonPressureForces(vec3d* points,vec3d* viscosity_force, vec3d* s
 								viscosity_force[index].z += visc.z;
 
 								//Surface tension calculation
-								vec3d st = STForce(index, row[t], r, points, mass, density, normal, type[row[t]], st_const, rho_0, ST_Kernel(r, h, invh));
+								vec3d st = STForce(index, row[t], r, points, mass, density, normal, type[row[t]], st_const, rho_0, ST_Kernel(r, h, invh, type[row[t]]));
 
 								//summation of calcualted value to main array
 								st_force[index].x += st.x;
