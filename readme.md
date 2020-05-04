@@ -30,7 +30,7 @@ The physical properties and initial conditions should be set in the [/props](htt
 
 ## Deployment
 
-To deploy this project, you should build it with Visual Studio. Open ```CUDA_PCISPH.sln``` in Visual Studio, select ```Release x64``` in the solution configuration just left of the green _play button_ on the top of the screen and go to the **Solution Explorer** (keyboard shortcut ```Ctrl+Alt+L```). Right click on ```CUDA_PCISPH``` and select the ```Build``` option. After it's done, go to the same folder ```CUDA_PCISPH.sln``` is in and look for the ```\bin``` directory. Open it and go to the ```x64``` folder and look for the ```.exe``` file. This is the application. You can move this file to another directory. **Just remember** to move the ```\props``` directory as well. Double click on it to run.
+To deploy this project, you should build it with Visual Studio. Open ```CUDA_PCISPH.sln``` in Visual Studio, select ```Release x64``` in the solution configuration just left of the green _play button_ on the top of the screen and go to the **Solution Explorer** (keyboard shortcut ```Ctrl+Alt+L```). Right click on ```CUDA_PCISPH``` and select the ```Build``` option. After it's done, go to the same folder of ```CUDA_PCISPH.sln``` and look for the ```\bin``` directory. Open it and go to the ```\x64``` folder and look for the ```.exe``` file. This is the application. You can move this file to another directory. **Just remember** to move the ```\props``` directory as well. Double click on it to run.
 
 ## Post processing
 
@@ -38,7 +38,7 @@ All the simulation results will be on the ```/results``` directory, created in t
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](https://gist.github.com/PurpleBooth/b24679402957c63ec426) for details on our code of conduct, and the process for submitting pull requests to us.
+Please read [contributing.md](https://github.com/ZehCoque/CUDA_PCISPH/tree/master/props/contributing.md) for details on our code of conduct, and the process for submitting pull requests to us.
 
 ## Authors
 
@@ -47,8 +47,11 @@ This project was developed by José Antonio Rico Coque and Bartosz Powalka in [We
 ## References
 
 [1](https://www.zora.uzh.ch/id/eprint/29726/1/pcisph.pdf) Solenthaler, B. & Pajarola, R. Predictive-Corrective Incompressible SPH. (2009)
+
 [2](https://www.researchgate.net/publication/221622694_Boundary_Handling_and_Adaptive_Time-stepping_for_PCISPH) Ihmsen, M., Akinci, N., Gissler, M. & Teschner, M. Boundary handling and adaptive time-stepping for PCISPH. 
+
 [3](https://people.inf.ethz.ch/~sobarbar/papers/Sol12/Sol12.pdf) Akinci, N., Ihmsen, M., Akinci, G., Solenthaler, B. & Teschner, M. Versatile Rigid-Fluid Coupling for Incompressible SPH. 
+
 [4](https://github.com/openworm/sibernetic) Sibernetic
 
 
