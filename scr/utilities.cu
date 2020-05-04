@@ -96,7 +96,7 @@ char* getMainPath(char* main_path) {
 	}
 
 	strcpy(main_path, starter_path);
-	strcat(main_path, "/simulation 1");
+	strcat(main_path, "/simulation");
 
 	DIR* dir = opendir(PATH);
 
@@ -132,9 +132,12 @@ char* getMainPath(char* main_path) {
 	// }
 
 	std::vector<int>::iterator max_value = std::max_element(arr.begin(), arr.end());
+	
+	printf("%d\n", max_value[0]);
 	//printf("%d\n", max_value[0] + 1);
-	char buffer[1024];
+	char* buffer = new char[10];
 	itoa(max_value[0] + 1, buffer, 10);
+	printf("%s\n", buffer);
 	//printf("%s\n", buffer);
 	strcat(main_path, buffer);
 
