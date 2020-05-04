@@ -1,6 +1,6 @@
 # CUDA PCISPH
 
-Predictive-Corrective Incompressible Smooth Particle Hydrodynamics developed for NVIDIA CUDA. This project was developed by José Antonio Rico Coque in West Pomeranian University of Technology (ZUT) on the Faculty of Mechanical Engineering and Mechatronics with Professor Bartosz Powalka. It is a tool for solving Navier-Stokes' equations in a particle-based fluid simulation called Smooth Particle Hydrodynamics. This method predicts future positions for each particle and corrects it forcing the imcompressibility of water.
+Predictive-Corrective Incompressible Smooth Particle Hydrodynamics developed for NVIDIA CUDA. It is a tool for solving Navier-Stokes' equations in a particle-based fluid simulation called Smooth Particle Hydrodynamics. This method predicts and corrects future positions for each particle forcing the fluid's imcompressibility.
 
 ## Getting Started
 
@@ -72,9 +72,7 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 
 ## Authors
 
-* **Billie Thompson** - *Initial work* - [PurpleBooth](https://github.com/PurpleBooth)
-
-See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
+This project was developed by José Antonio Rico Coque in [West Pomeranian University of Technology](https://www.zut.edu.pl/uczelnia/aktualnosci.html) (ZUT) on the [Faculty of Mechanical Engineering and Mechatronics](https://wimim.zut.edu.pl/index.php?id=11909) with Professor Bartosz Powalka.
 
 ## License
 
