@@ -38,11 +38,11 @@ All the simulation results will be on the ```/results``` directory, created in t
 
 ## Contributing
 
-Please read [contributing.md](https://github.com/ZehCoque/CUDA_PCISPH/tree/master/props/contributing.md) for details on our code of conduct, and the process for submitting pull requests to us.
+Please read [contributing.md](https://github.com/ZehCoque/CUDA_PCISPH/blob/master/contributing.md) for details on our code of conduct, and the process for submitting pull requests to us.
 
 ## Authors
 
-This project was developed by José Antonio Rico Coque and Bartosz Powalka in [West Pomeranian University of Technology](https://www.zut.edu.pl/uczelnia/aktualnosci.html) (ZUT) on the [Faculty of Mechanical Engineering and Mechatronics](https://wimim.zut.edu.pl/index.php?id=11909).
+This project was developed by ***José Antonio Rico Coque*** and ***Bartosz Powalka*** in [West Pomeranian University of Technology](https://www.zut.edu.pl/uczelnia/aktualnosci.html) (ZUT) on the [Faculty of Mechanical Engineering and Mechatronics](https://wimim.zut.edu.pl/index.php?id=11909).
 
 ## References
 
