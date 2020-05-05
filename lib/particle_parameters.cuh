@@ -775,9 +775,9 @@ __global__ void hashtableReset(int* d_hashtable,int Ncols,size_t pitch, int size
 }
 
 __global__ void resetValues(float* max_velocity, float* max_force, float* sum_rho_err) {
-	max_velocity = 0;
-	max_force = 0;
-	sum_rho_err = 0;
+	max_velocity[0] = 0.f;
+	max_force[0] = 0.f;
+	sum_rho_err[0] = 0.f;
 	return;
 }
 
