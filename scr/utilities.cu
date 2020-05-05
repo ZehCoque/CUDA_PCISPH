@@ -337,7 +337,7 @@ void rewritePVD(char* main_path) {
 	pvd2.close();
 
 	remove(pvd_path);
-	rename(pvd_path, pvd_path_cpy);
+	rename(pvd_path_cpy, pvd_path);
 
 	for (int i = 1; i < 4; i++) {
 		num_buff = new char[32];
