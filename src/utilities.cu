@@ -336,26 +336,6 @@ void rewritePVD(char* main_path) {
 	remove(pvd_path);
 	rename(pvd_path_cpy, pvd_path);
 
-	bool deleted = false;
-
-	while (!deleted) {
-		int i = 1;
-		num_buff = new char[32];
-		itoa(iteration + i, num_buff, 10);
-
-		char* vtu = new char[256];
-		strcpy(vtu, main_path);
-		strcat(vtu, "/vtu/iter");
-		strcat(vtu, num_buff);
-		strcat(vtu, ".vtu");
-
-		if (fileExists(vtu) == 1) {
-			deleted = true;
-			remove(vtu);
-		}
-		i++;
-	}
-
 	return;
 
 }
