@@ -981,7 +981,8 @@ int mainLoop() {
 		std::cout << "\nSHOCK DETECTED! RETURNING 2 ITERATIONS!\n" << std::endl;
 		write_pvd = false;
 		//SHOCK DETECTED
-		delta_t = fminf(0.05f * sqrt(h/max_force),0.08f*h/max_velocity);
+		//delta_t = fminf(0.2f * sqrt(h/max_force),0.08f*h/max_velocity);
+		delta_t = delta_t / 10;
 
 		//Return 2 iterations
 
