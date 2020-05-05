@@ -93,6 +93,7 @@ __device__ vec3d STForce(int i, int j,float r, vec3d* points, float* mass, float
 		return st;
 	}
 	else if (type == 1) {
+
 		vec3d adhesion;
 
 		float tmp = -st_const * mass[i] * mass[j] * ST_Kernel / r;
@@ -100,7 +101,7 @@ __device__ vec3d STForce(int i, int j,float r, vec3d* points, float* mass, float
 		adhesion.x = tmp * (points[i].x - points[j].x);
 		adhesion.y = tmp * (points[i].y - points[j].y);
 		adhesion.z = tmp * (points[i].z - points[j].z);
-
+		//printf("%g %g %g\n", adhesion.x, adhesion.y, adhesion.z);
 		return adhesion;
 	}
 	

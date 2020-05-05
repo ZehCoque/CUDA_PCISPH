@@ -79,7 +79,7 @@ char* getMainPath(char* main_path) {
 	char* starter_path = new char[256];
 
 	if (strlen(user_results_folder) == 0) {
-		starter_path = ".";
+		starter_path = "./results";
 	}
 	else {
 		starter_path = user_results_folder;

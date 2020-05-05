@@ -62,7 +62,9 @@ __device__ float ST_Kernel(float r, float h,float invh, int type)
 		}
 	}
 	else if (type == 1) {
-		if (2.f * r > h || r <= h) {
+		if (2.f * r > h && r <= h) {
+			/*float tmp = 0.007f * powf(invh, 3.25f) * powf(-4.f * powf(r, 2.f) * invh + 6.f * r - 2.f * h, 0.25f);*/
+			//printf("%g\n", 0.007f * powf(invh, 3.25f) * powf(-4.f * powf(r, 2.f) * invh + 6.f * r - 2.f * h, 0.25f));
 			return 0.007f * powf(invh, 3.25f) * powf(-4.f * powf(r, 2.f) * invh + 6.f * r - 2.f * h, 0.25f);
 		}
 		else {
