@@ -7,3 +7,4 @@ extern float final_time;
 extern float max_rho_err;
 extern float delta_t;
 extern char* user_results_folder;
+extern float save_steps;

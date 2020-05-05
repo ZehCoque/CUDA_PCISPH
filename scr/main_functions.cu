@@ -44,7 +44,6 @@ float rho_0; //rest density
 float visc_const; //viscosity constant
 float st_const; // surface tension constant
 float epsilon; // dumping coefficient for collision
-float cs; // sound speed in water
 
 //initial conditions
 float PARTICLE_RADIUS;
@@ -97,6 +96,7 @@ float max_rho_err_t_1 = 0.f;
 float max_rho_err;
 bool write_pvd = true;
 char* user_results_folder = new char[256];
+float save_steps;
 
 int fileReader() {
 
@@ -109,9 +109,9 @@ int fileReader() {
 	vec3d vec;
 
 	//names
-	char* phys_props_names[] = { "rho_0","visc_const","surface_tension_const","collision_dumping_coeff","fluid_sound_speed" };
+	char* phys_props_names[] = { "rho_0","visc_const","surface_tension_const","collision_dumping_coeff" };
 	char* init_cond_names[] = {"particle_radius","mass","fluid_initial_coord","fluid_final_coord","boundary_initial_coord","boundary_final_coord","fluid_initial_velocity","maximum_volume_compression","maximum_density_fluctuation"};
-	char* system_names[] = { "initial_delta_t","initial_time","final_time","neighbors_per_particle","results_folder"};
+	char* system_names[] = { "initial_delta_t","initial_time","final_time","neighbors_per_particle", "save_steps","results_folder"};
 	
 	int phys_props_size = sizeof(phys_props_names) / 8;
 	int init_cond_size = sizeof(init_cond_names) / 8;
@@ -180,9 +180,6 @@ int fileReader() {
 				}
 				else if (i == 3) {
 					epsilon = num;
-				}
-				else if (i == 4) {
-					cs = num;
 				}
 			}
 			row = new char[256];
@@ -421,6 +418,9 @@ int fileReader() {
 					particles_per_row = (int)num;
 				}
 				else if (i == 4) {
+					save_steps = num;
+				}
+				else if (i == 5) {
 					user_results_folder = num_buffer;
 				}
 
@@ -892,7 +892,7 @@ int mainLoop() {
 
 	grid_size = N / block_size + 1;
 	fluidNormal << <grid_size, block_size >> > (d_NORMAL, d_POSITION, d_MASS, d_DENSITY,d_TYPE, rho_0, h,invh, hash,d_hashtable, particles_per_row,pitch, N);
-	nonPressureForces << <grid_size, block_size >> > (d_POSITION, d_VISCOSITY_FORCE, d_ST_FORCE, d_MASS, d_DENSITY, d_VELOCITY, d_NORMAL, gravity,d_TYPE, h, invh, rho_0, visc_const, st_const,cs, particles_per_row, pitch,d_hashtable, hash, N);
+	nonPressureForces << <grid_size, block_size >> > (d_POSITION, d_VISCOSITY_FORCE, d_ST_FORCE, d_MASS, d_DENSITY, d_VELOCITY, d_NORMAL, gravity,d_TYPE, h, invh, rho_0, visc_const, st_const, particles_per_row, pitch,d_hashtable, hash, N);
 	gpuErrchk(cudaPeekAtLastError());
 
 	//reseting values of pressure

@@ -14,6 +14,7 @@ void multiprocessor_writer();
 
 int main(void)
 {
+	float save_count = 0;
 	std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 	std::cout << "INITIALIZING...\n";
 
@@ -41,8 +42,15 @@ int main(void)
 			printf("\n\nMAIN LOOP ERROR\n\n");
 			return 1;
 		}
+		
+		save_count += delta_t;
 
-		multiprocessor_writer();
+		if (save_count > save_steps / 1000) {
+			multiprocessor_writer();
+			save_count = fmod(simulation_time,(save_steps / 1000));
+		}
+
+		
 	}
 
 	//for (int i = 0; i < 11; i++) {
