@@ -122,17 +122,17 @@ int fileReader() {
 	char* initial_conditions_path = "./props/initial_conditions.txt";
 	char* system_path = "./props/system.txt";
 
-	if (dirExists(phys_props_path) == 1) {
+	if (fileExists(phys_props_path) != 0) {
 		std::cout << "\nERROR! Could not find physical properties file at " << phys_props_path << "\n";
 		return 1;
 	}
 
-	if (dirExists(phys_props_path) == 1) {
+	if (fileExists(phys_props_path) != 0) {
 		std::cout << "\nERROR! Could not find initial conditions file at " << phys_props_path << "\n";
 		return 1;
 	}
 
-	if (dirExists(phys_props_path) == 1) {
+	if (fileExists(phys_props_path) != 0) {
 		std::cout << "\nERROR! Could not find system names file at " << phys_props_path << "\n";
 		return 1;
 	}

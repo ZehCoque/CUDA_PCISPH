@@ -96,12 +96,6 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CudaCompile Include="scr\main.cu" />
-    <CudaCompile Include="scr\main_functions.cu" />
-    <CudaCompile Include="scr\utilities.cu" />
-    <CudaCompile Include="scr\VTK.cu" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="lib\common.cuh" />
     <ClInclude Include="lib\device_functions.cuh" />
     <ClInclude Include="lib\forces.cuh" />
@@ -113,6 +107,12 @@
     <ClInclude Include="lib\particle_positions.cuh" />
     <ClInclude Include="lib\utilities.cuh" />
     <ClInclude Include="lib\VTK.cuh" />
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="src\main.cu" />
+    <CudaCompile Include="src\main_functions.cu" />
+    <CudaCompile Include="src\utilities.cu" />
+    <CudaCompile Include="src\VTK.cu" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
