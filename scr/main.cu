@@ -20,6 +20,12 @@ int main(void)
 
 	int rdr = fileReader();
 
+	if (rdr != 0) {
+		printf("\n\nERROR READING PROPS FILES\n\n");
+		_getch();
+		return 1;
+	}
+
 	int init = initialize();
 	std::chrono::high_resolution_clock::time_point init_end = std::chrono::high_resolution_clock::now();
 	auto init_time = std::chrono::duration_cast<std::chrono::seconds>(init_end - start).count();
@@ -28,6 +34,7 @@ int main(void)
 
 	if (init != 0) {
 		printf("\n\nINITIALIZATION ERROR\n\n");
+		_getch();
 		return 1;
 	} 
 
@@ -40,6 +47,7 @@ int main(void)
 
 		if (main_loop != 0) {
 			printf("\n\nMAIN LOOP ERROR\n\n");
+			_getch();
 			return 1;
 		}
 		
@@ -53,9 +61,6 @@ int main(void)
 		
 	}
 
-	//for (int i = 0; i < 11; i++) {
-	//	testFunc();
-	//}
 	std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
 	cudaDeviceReset();
 	_getch();
