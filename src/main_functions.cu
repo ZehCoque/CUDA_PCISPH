@@ -984,6 +984,17 @@ int mainLoop() {
 	if (criteria1 || criteria2 || criteria3) {
 
 		int last_iter = getLastIter(main_path);
+		char iter_path[100];
+		char num_buffer[50];
+		if (iteration - last_iter == 1) {
+			itoa(last_iter, num_buffer, 10);
+			strcpy(iter_path, vtu_path);
+			strcat(iter_path, "/iter");
+			strcat(iter_path, num_buffer);
+			strcat(iter_path, ".vtu");
+			remove(iter_path);
+			int last_iter = getLastIter(main_path);
+		}
 
 		std::cout << "\n\nSHOCK DETECTED! RETURNING " << iteration - last_iter << " ITERATIONS!\n" << std::endl;
 		write_pvd = false;
@@ -1002,8 +1013,6 @@ int mainLoop() {
 		vec3d* position = (vec3d*)malloc(N * sizeof(vec3d));
 		vec3d* velocity = (vec3d*)malloc(N * sizeof(vec3d));
 
-		char iter_path[100];
-		char num_buffer[50];
 		itoa(iteration, num_buffer, 10);
 		strcpy(iter_path, vtu_path);
 		strcat(iter_path, "/iter");
