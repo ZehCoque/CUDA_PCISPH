@@ -25,7 +25,7 @@ int main(void)
 	auto init_time = std::chrono::duration_cast<std::chrono::seconds>(init_end - start).count();
 	std::cout << "It took " << init_time << " s to initialize\n"
 	<< "----------------------------------------------------------------\n\n";
-	//system("CLS");
+
 	if (init != 0) {
 		printf("\n\nINITIALIZATION ERROR\n\n");
 		return 1;

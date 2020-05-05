@@ -127,6 +127,16 @@ int fileReader() {
 		return 1;
 	}
 
+	if (dirExists(phys_props_path) == 1) {
+		std::cout << "\nERROR! Could not find initial conditions file at " << phys_props_path << "\n";
+		return 1;
+	}
+
+	if (dirExists(phys_props_path) == 1) {
+		std::cout << "\nERROR! Could not find system names file at " << phys_props_path << "\n";
+		return 1;
+	}
+
 	//reading physical properties
 	std::ifstream phys_props (phys_props_path);
 
