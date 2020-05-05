@@ -336,7 +336,10 @@ void rewritePVD(char* main_path) {
 	remove(pvd_path);
 	rename(pvd_path_cpy, pvd_path);
 
-	for (int i = 1; i < 4; i++) {
+	bool deleted = false;
+
+	while (!deleted) {
+		int i = 1;
 		num_buff = new char[32];
 		itoa(iteration + i, num_buff, 10);
 
@@ -347,8 +350,10 @@ void rewritePVD(char* main_path) {
 		strcat(vtu, ".vtu");
 
 		if (fileExists(vtu) == 1) {
+			deleted = true;
 			remove(vtu);
 		}
+		i++;
 	}
 
 	return;
