@@ -66,7 +66,7 @@ __device__ __forceinline__ float atomicMaxFloat(float* addr, float value) {
 
 __device__ float maxValueInVec3D(vec3d vec) {
 
-	return fmaxf(vec.x, fmaxf(vec.y, vec.z));
+	return fmaxf(fabs(vec.x), fmaxf(fabs(vec.y), fabs(vec.z)));
 
 }
 
