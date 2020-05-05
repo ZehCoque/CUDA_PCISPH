@@ -27,3 +27,5 @@ double dround(double val, int dp);
 void displayProgress(std::chrono::high_resolution_clock::time_point start);
 
 void rewritePVD(char* main_path);
+
+int getLastIter(char* main_path);

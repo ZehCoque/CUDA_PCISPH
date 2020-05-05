@@ -62,7 +62,7 @@ int count_lines(char path[])
 int extractIntegers(char* str) {
 	char* buffer = new char[strlen(str)];
 	int count = 0;
-	//printf("%zd\n", strlen(str));
+
 	for (int i = 0; i < strlen(str); i++) {
 		if (isdigit(str[i])) {
 			// strcat(buffer,atoi(str[i]));
@@ -70,7 +70,7 @@ int extractIntegers(char* str) {
 			count++;
 		}
 	}
-	//printf("buffer = %s\n",buffer);
+
 	return atoi(buffer);
 }
 
@@ -344,7 +344,7 @@ void rewritePVD(char* main_path) {
 		strcpy(vtu, main_path);
 		strcat(vtu, "/vtu/iter");
 		strcat(vtu, num_buff);
-		strcat(vtu, ".vtu.");
+		strcat(vtu, ".vtu");
 
 		if (fileExists(vtu) == 1) {
 			remove(vtu);
@@ -355,3 +355,39 @@ void rewritePVD(char* main_path) {
 
 }
 
+int getLastIter(char* main_path) {
+
+	char* vtu = new char[256];
+	strcpy(vtu, main_path);
+	strcat(vtu, "/vtu");
+
+	DIR* dir = opendir(vtu);
+
+	struct dirent* entry = readdir(dir);
+
+	char tmp1[1024];
+	char tmp2[1024];
+	std::vector<int>arr;
+	strcpy(tmp1, "iter");
+	int integer;
+	while (entry != NULL)
+	{
+		strcpy(tmp2, entry->d_name);
+		// printf("%s\n", entry->d_name);
+		if (strstr(tmp2, tmp1) != nullptr) {
+
+			//printf("%s\n", entry->d_name);
+			integer = extractIntegers(tmp2);
+			//printf("%d\n", integer);
+			arr.push_back(integer);
+		}
+		entry = readdir(dir);
+	}
+
+	closedir(dir);
+
+	std::vector<int>::iterator max_value = std::max_element(arr.begin(), arr.end());
+
+	return max_value[0];
+
+}

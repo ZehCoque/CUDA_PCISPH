@@ -600,7 +600,7 @@ __global__ void collisionHandler(vec3d* points, vec3d* velocities,vec3d* normal,
 	return;
 }
 
-__global__ void DensityCalc(float* max_rho_err, vec3d* points, float* mass, float* density, const float h, const float invh, const float rho_0, const int Ncols, size_t pitch, int* d_hashtable, Hash hash, int size) {
+__global__ void DensityCalc(vec3d* points, float* mass, float* density, const float h, const float invh, const float rho_0, const int Ncols, size_t pitch, int* d_hashtable, Hash hash, int size) {
 
 	int index = getGlobalIdx_1D_1D();
 
@@ -647,12 +647,6 @@ __global__ void DensityCalc(float* max_rho_err, vec3d* points, float* mass, floa
 			}
 		}
 	}
-
-	if (density[index] - rho_0 <= 0) {
-		return;
-	}
-
-	atomicMaxFloat(max_rho_err, density[index] - rho_0);
 
 	return;
 }
@@ -726,7 +720,7 @@ __global__ void PressureForceCalc(vec3d* points, vec3d* pressure_force,float* pr
 	return;
 }
 
-__global__ void getMaxVandF(float* max_velocity, float* max_force, vec3d* velocities, vec3d* pressure_force, vec3d* viscosity_force, vec3d* st_force, vec3d gravity,float* mass,float* density,float* sum_rho_error,float rho_0,int size) {
+__global__ void getMaxVandF(float* max_velocity, float* max_force, vec3d* velocities, vec3d* pressure_force, vec3d* viscosity_force, vec3d* st_force, vec3d gravity,float* mass,float* density,float* sum_rho_error,float* max_rho_err,float rho_0,int size) {
 
 	int index = getGlobalIdx_1D_1D();
 
@@ -752,8 +746,9 @@ __global__ void getMaxVandF(float* max_velocity, float* max_force, vec3d* veloci
 
 	if (rho_err > 0) {
 		atomicAddFloat(sum_rho_error, rho_err);
+		atomicMaxFloat(max_rho_err, rho_err);
 	}
-
+	
 	return;
 }
 
@@ -774,10 +769,11 @@ __global__ void hashtableReset(int* d_hashtable,int Ncols,size_t pitch, int size
 
 }
 
-__global__ void resetValues(float* max_velocity, float* max_force, float* sum_rho_err) {
+__global__ void resetValues(float* max_velocity, float* max_force, float* sum_rho_err,float* max_rho_err) {
 	max_velocity[0] = 0.f;
 	max_force[0] = 0.f;
 	sum_rho_err[0] = 0.f;
+	max_rho_err[0] = 0.f;
 	return;
 }
 

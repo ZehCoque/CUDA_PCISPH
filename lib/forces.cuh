@@ -9,11 +9,15 @@ __device__ vec3d ViscosityForce(int i, int j,float* mass, float* density,vec3d* 
 	vec3d viscosity;
 
 	if (type == 1) {
-		float tmp = mass[i] / density[i] * mass[j] / rho_0 * visc_const * Laplacian;
+		//float tmp = mass[i] / density[i] * mass[j] / rho_0 * visc_const * Laplacian;
 
-		viscosity.x = tmp * (velocity[j].x - velocity[i].x);
-		viscosity.y = tmp * (velocity[j].y - velocity[i].y);
-		viscosity.z = tmp * (velocity[j].z - velocity[i].z);
+		//viscosity.x = tmp * (velocity[j].x - velocity[i].x);
+		//viscosity.y = tmp * (velocity[j].y - velocity[i].y);
+		//viscosity.z = tmp * (velocity[j].z - velocity[i].z);
+
+		viscosity.x = 0.f;
+		viscosity.y = 0.f;
+		viscosity.z = 0.f;
 	}
 	else {
 		//mass_i / density_i * visc_const * mass_j / density_j * (v_j - v_i) * Laplacian;
