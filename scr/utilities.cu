@@ -330,9 +330,6 @@ void rewritePVD(char* main_path) {
 
 	}
 
-	pvd2 << "</Collection>\n"
-		 << "</VTKFile>";
-
 	pvd1.close();
 	pvd2.close();
 
