@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cuda_runtime.h>
 #include "global_variables.cuh"
+#include <conio.h>
 //struct stat info;
 int fileExists(const char* const path);
 

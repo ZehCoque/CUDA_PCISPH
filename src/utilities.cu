@@ -297,7 +297,7 @@ void rewritePVD(char* main_path) {
 	char search_char[64];
 	strcpy(search_char, "iter");
 	strcat(search_char, num_buff);
-
+	
 	char pvd_path[256];
 	strcpy(pvd_path, main_path);
 	strcat(pvd_path, "/PCISPH.pvd");
@@ -317,8 +317,9 @@ void rewritePVD(char* main_path) {
 	
 		pvd2 << write2line;
 		row[row_index] = write2line;
-
+		row_index++;
 		if (write2line == 10) {
+			
 			if (strstr(row, search_char) != nullptr) {
 				break;
 			}
@@ -329,6 +330,9 @@ void rewritePVD(char* main_path) {
 		}
 
 	}
+
+	pvd2 << "</Collection>\n"
+		<< "</VTKFile>";
 
 	pvd1.close();
 	pvd2.close();

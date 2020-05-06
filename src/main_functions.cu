@@ -984,16 +984,21 @@ int mainLoop() {
 	if (criteria1 || criteria2 || criteria3) {
 
 		int last_iter = getLastIter(main_path);
-		char iter_path[100];
-		char num_buffer[50];
-		if (iteration - last_iter == 1) {
+		char* iter_path = new char[100];
+		char* num_buffer = new char[32];
+		while (iteration - last_iter < 2) {
 			itoa(last_iter, num_buffer, 10);
 			strcpy(iter_path, vtu_path);
 			strcat(iter_path, "/iter");
 			strcat(iter_path, num_buffer);
+			
 			strcat(iter_path, ".vtu");
+			//printf("%s\n", iter_path);
 			remove(iter_path);
-			int last_iter = getLastIter(main_path);
+			last_iter = getLastIter(main_path);
+			//printf("%d\n", last_iter);
+			num_buffer = new char[32];
+			iter_path = new char[100];
 		}
 
 		std::cout << "\n\nSHOCK DETECTED! RETURNING " << iteration - last_iter << " ITERATIONS!\n" << std::endl;
