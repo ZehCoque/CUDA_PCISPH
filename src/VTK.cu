@@ -162,7 +162,7 @@ void readVTU(char* iter_path, vec3d* position, vec3d* velocity) {
 		if (write2line == 10 && starts_with_60) {
 
 			if (strstr(row, "velocity") != nullptr) {
-				char_count + 2;
+				char_count += 2;
 				break;
 			}
 
@@ -190,10 +190,15 @@ void readVTU(char* iter_path, vec3d* position, vec3d* velocity) {
 
 	vtu_file.seekg(char_count, std::ios::beg);
 
+	//std::ofstream tmp;
+	//tmp.open("tmp.txt");
+
 	buff_index = 0;
 	vec_index = 0;
 	axis = 0;
+	float_buffer = new char[50];
 	for (char write2line; vtu_file.get(write2line);) {
+		//tmp << write2line;
 		if (write2line == 60) { //if the currect char is not equal to <
 			break;
 		}
@@ -221,7 +226,7 @@ void readVTU(char* iter_path, vec3d* position, vec3d* velocity) {
 		}
 
 	}
-
+	//tmp.close();
 	vtu_file.close();
 	return;
 }
