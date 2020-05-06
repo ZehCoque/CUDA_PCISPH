@@ -901,6 +901,8 @@ int mainLoop() {
 	hashParticlePositions << <grid_size, block_size >> > (d_hashtable, d_POSITION, invh, hash, T, pitch, particles_per_row);
 
 	grid_size = N / block_size + 1;
+	DensityCalc << <grid_size, block_size >> > (d_POSITION, d_MASS, d_DENSITY, h, invh, rho_0, particles_per_row, pitch, d_hashtable, hash, N);
+
 	fluidNormal << <grid_size, block_size >> > (d_NORMAL, d_POSITION, d_MASS, d_DENSITY,d_TYPE, rho_0, h,invh, hash,d_hashtable, particles_per_row,pitch, N);
 	nonPressureForces << <grid_size, block_size >> > (d_POSITION, d_VISCOSITY_FORCE, d_ST_FORCE, d_MASS, d_DENSITY, d_VELOCITY, d_NORMAL, gravity,d_TYPE, h, invh, rho_0, visc_const, st_const, particles_per_row, pitch,d_hashtable, hash, N);
 	gpuErrchk(cudaPeekAtLastError());
