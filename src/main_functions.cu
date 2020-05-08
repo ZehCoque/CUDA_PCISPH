@@ -17,8 +17,8 @@ char main_path[1024];
 char vtk_group_path[1024];
 char vtu_fullpath[1024];
 char vtu_path[1024];
-std::string pointDataNames[] = { "density" , "pressure" };
-std::string vectorDataNames[] = {"velocity","pressure force","viscosity force","st force" };
+std::string pointDataNames[] = { "density" };
+std::string vectorDataNames[] = {"velocity" };
 
 int size_pointData;
 int size_vectorData;
@@ -851,17 +851,17 @@ int initialize() {
 	gravity.z = 0.f;
 
 	//Defining variables to write VTU files
-	float** pointData[2];
-	vec3d** vectorData[4];
+	float** pointData[1];
+	vec3d** vectorData[1];
 
 	pointData[0] = &DENSITY;
-	pointData[1] = &PRESSURE;
+	//pointData[1] = &PRESSURE;
 	size_pointData = sizeof(pointData) / sizeof(double);
 
 	vectorData[0] = &VELOCITY;
-	vectorData[1] = &PRESSURE_FORCE;
-	vectorData[2] = &VISCOSITY_FORCE;
-	vectorData[3] = &ST_FORCE;
+	//vectorData[1] = &PRESSURE_FORCE;
+	//vectorData[2] = &VISCOSITY_FORCE;
+	//vectorData[3] = &ST_FORCE;
 	size_vectorData = sizeof(vectorData) / sizeof(double);
 
 	VTU_Writer(vtu_path, iteration, POSITION, N, pointData, vectorData, pointDataNames, vectorDataNames, size_pointData, size_vectorData, vtu_fullpath);
@@ -1043,10 +1043,16 @@ int mainLoop() {
 	gpuErrchk(cudaPeekAtLastError());
 	gpuErrchk(cudaDeviceSynchronize());
 
-	simulation_time += delta_t;
+	if (simulation_time + delta_t > final_time) {
+		simulation_time = final_time;
+	}
+	else {
+		simulation_time += delta_t;
+	}
+	
 	iteration++;
 
-	writeTimeKeeper(main_path);
+	writeTimeKeeper(main_path,max_rho_err);
 
 	return 0;
 }
@@ -1064,32 +1070,32 @@ void multiprocessor_writer() {
 
 	vec3d* write_position = (vec3d*)malloc(3 * N * sizeof(float));
 	vec3d* write_velocity = (vec3d*)malloc(3 * N * sizeof(float));
-	vec3d* write_viscosity_force = (vec3d*)malloc(3 * N * sizeof(float));
-	vec3d* write_st_force = (vec3d*)malloc(3 * N * sizeof(float));
-	vec3d* write_presure_force = (vec3d*)malloc(3 * N * sizeof(float));
+	//vec3d* write_viscosity_force = (vec3d*)malloc(3 * N * sizeof(float));
+	//vec3d* write_st_force = (vec3d*)malloc(3 * N * sizeof(float));
+	//vec3d* write_presure_force = (vec3d*)malloc(3 * N * sizeof(float));
 	float* write_density = (float*)malloc(N * sizeof(float));
-	float* write_pressure = (float*)malloc(N * sizeof(float));
+	//float* write_pressure = (float*)malloc(N * sizeof(float));
 
 	gpuErrchk(cudaMemcpy(write_position, d_POSITION, N * 3 * sizeof(float), cudaMemcpyDeviceToHost));
 	gpuErrchk(cudaMemcpy(write_velocity, d_VELOCITY, N * 3 * sizeof(float), cudaMemcpyDeviceToHost));
-	gpuErrchk(cudaMemcpy(write_viscosity_force, d_VISCOSITY_FORCE, N * 3 * sizeof(float), cudaMemcpyDeviceToHost));
-	gpuErrchk(cudaMemcpy(write_st_force, d_ST_FORCE, N * 3 * sizeof(float), cudaMemcpyDeviceToHost));
-	gpuErrchk(cudaMemcpy(write_presure_force, d_PRESSURE_FORCE, N * 3 * sizeof(float), cudaMemcpyDeviceToHost));
+	//gpuErrchk(cudaMemcpy(write_viscosity_force, d_VISCOSITY_FORCE, N * 3 * sizeof(float), cudaMemcpyDeviceToHost));
+	////gpuErrchk(cudaMemcpy(write_st_force, d_ST_FORCE, N * 3 * sizeof(float), cudaMemcpyDeviceToHost));
+	//gpuErrchk(cudaMemcpy(write_presure_force, d_PRESSURE_FORCE, N * 3 * sizeof(float), cudaMemcpyDeviceToHost));
 	gpuErrchk(cudaMemcpy(write_density, d_DENSITY, N * sizeof(float), cudaMemcpyDeviceToHost));
-	gpuErrchk(cudaMemcpy(write_pressure, d_PRESSURE, N * sizeof(float), cudaMemcpyDeviceToHost));
+	//gpuErrchk(cudaMemcpy(write_pressure, d_PRESSURE, N * sizeof(float), cudaMemcpyDeviceToHost));
 	//auto started = std::chrono::high_resolution_clock::now();
 
-	float** pointData[2];
-	vec3d** vectorData[4];
+	float** pointData[1];
+	vec3d** vectorData[1];
 
 	pointData[0] = &write_density;
-	pointData[1] = &write_pressure;
+	//pointData[1] = &write_pressure;
 	size_pointData = sizeof(pointData) / sizeof(double);
 
 	vectorData[0] = &write_velocity;
-	vectorData[1] = &write_presure_force;
-	vectorData[2] = &write_viscosity_force;
-	vectorData[3] = &write_st_force;
+	//vectorData[1] = &write_presure_force;
+	//vectorData[2] = &write_viscosity_force;
+	//vectorData[3] = &write_st_force;
 	//vectorData[4] = &NORMAL;
 	size_vectorData = sizeof(vectorData) / sizeof(double);
 

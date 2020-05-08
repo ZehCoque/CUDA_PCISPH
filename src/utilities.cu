@@ -179,7 +179,7 @@ void cudaAtributes(void *dev_ptr) {
 	return;
 }
 
-void writeTimeKeeper(char* main_path) {
+void writeTimeKeeper(char* main_path, float max_rho_err) {
 
 	char buffer[1024];
 	strcpy(buffer, main_path);
@@ -188,7 +188,7 @@ void writeTimeKeeper(char* main_path) {
 	std::ofstream time_keeper;
 	time_keeper.open(time_keeper_path, std::ios::app);
 
-	time_keeper << iteration << " " << simulation_time << "\n";
+	time_keeper << iteration << " " << simulation_time << " " << max_rho_err << "\n";
 
 	time_keeper.close();
 
