@@ -1,3 +1,5 @@
+//This file defines the main functions of the simulation. These functions are called in the "main" function inside the "main.cu" file.
+
 #define _USE_MATH_DEFINES
 
 #include "particle_positions.cuh"
@@ -11,33 +13,31 @@
 #include <math.h>
 
 
-//declaration of all global variables that are going to be used in this file
+//declaration of all global variables that are going to be used in this file by all functions
 
-char main_path[1024];
-char vtk_group_path[1024];
-char vtu_fullpath[1024];
-char vtu_path[1024];
-std::string pointDataNames[] = { "density" };
-std::string vectorDataNames[] = {"velocity" };
+char main_path[1024]; //stores the main path of the result instance
+char vtk_group_path[1024]; //stores the path of the vtk group file
+char vtu_fullpath[1024]; //stores the path of the current iteration file
+char vtu_path[1024]; //stores the path of the vtu directory (where the vtu files are saved)
 
-int size_pointData;
-int size_vectorData;
+std::string pointDataNames[] = { "density" }; //stores the names of the point data to display in Paraview
+std::string vectorDataNames[] = {"velocity" }; //stores the names of the vector data to display in Paraview
 
-vec3d* d_POSITION;
-vec3d* d_PRED_POSITION;
-vec3d* d_VELOCITY;
-vec3d* d_PRED_VELOCITY;
-vec3d* d_ST_FORCE;
-vec3d* d_VISCOSITY_FORCE;
-vec3d* d_PRESSURE_FORCE;
-vec3d* d_NORMAL;
-float* DENSITY;
-float* d_DENSITY;
-float* d_PRESSURE;
-float* d_MASS;
-int* d_TYPE;
-int* d_hashtable;
-vec3d gravity;
+vec3d* d_POSITION; //stores the pointer to the position data in the GPU
+vec3d* d_PRED_POSITION; //stores the pointer to the predicted position data in the GPU
+vec3d* d_VELOCITY; //stores the pointer to the velocity data in the GPU
+vec3d* d_PRED_VELOCITY; //stores the pointer to the predicted data in the GPU
+vec3d* d_ST_FORCE; //stores the pointer to the surface tension force data in the GPU
+vec3d* d_VISCOSITY_FORCE; //stores the pointer to the viscosity force data in the GPU
+vec3d* d_PRESSURE_FORCE; //stores the pointer to the pressure force data in the GPU
+vec3d* d_NORMAL; //stores the pointer to the normal data in the GPU
+float* DENSITY; //stores the pointer to the density data in the CPU
+float* d_DENSITY; //stores the pointer to the density data in the GPU
+float* d_PRESSURE; //stores the pointer to the pressure data in the GPU
+float* d_MASS; //stores the pointer to the mass data in the GPU
+int* d_TYPE; //stores the pointer to the type data in the GPU
+int* d_hashtable; //stores the pointer to the hashtable data in the GPU
+vec3d gravity; //stores the pointer to the gravity data in the CPU
 
 //physical constants
 float rho_0; //rest density
@@ -46,40 +46,37 @@ float st_const; // surface tension constant
 float epsilon; // dumping coefficient for collision
 
 //initial conditions
-float PARTICLE_RADIUS;
-float MASS_calc;// = rho_0 * (float)M_PI * pow(PARTICLE_RADIUS, 3.f) / 3.f * 4.f;
-float USER_MASS;
-float PARTICLE_DIAMETER;
-float F_INITIAL_POSITION[3]; // = { 0.f,0.f,0.f }; //Fluid particles initial position
-float F_FINAL_POSITION[3]; // = { 0.5f,1.f,0.5f }; //Fluid particles final position
-float B_INITIAL_POSITION[3]; // = { 0.f,0.f,0.f }; //Boundary particles final position
-float B_FINAL_POSITION[3]; // = { 1.f,1.f,1.f }; //Boundary particles final position
-float V_INITIAL[3];
+float PARTICLE_RADIUS; //stores the particle radius value
+float MASS_calc; //stores the calculated mass value
+float USER_MASS; //stores the mass defined by the user in
+float PARTICLE_DIAMETER; //stores the particle diameter value
+float F_INITIAL_POSITION[3]; //fluid particles initial position
+float F_FINAL_POSITION[3]; //fluid particles final position
+float B_INITIAL_POSITION[3]; //boundary particles final position
+float B_FINAL_POSITION[3]; //boundary particles final position
+float V_INITIAL[3]; //initial velocity defined by the user
 
 //controlling iteration number and simulation time
-int iteration = 1;
+int iteration = 1; //iteration counter
 float simulation_time; //in seconds
 float final_time; //in seconds
 
-//number of particles
-int N; //fluid particles
-int B; //bondary particles
-int T; //total particles
+int N; //number of fluid particles
+int B; //number of bondary particles
+int T; //total number of particles
 
 //variables for hashtable
-size_t pitch;
-int particles_per_row = 200;
-int hashtable_size;
-
-//simulation parameters
-float invh;
-float h;
+size_t pitch; //this variable is defined by the GPU when the cudaMallocPitch runs
+int particles_per_row; //this is the maximum number of neighbors a particle can have due to memory allocation
+int hashtable_size; //this is the size of the hashtable. Must be a power of 2.
 
 //CUDA variables
 int block_size;
 int grid_size;
 
 //PCISPH variables
+float invh; //inverse of the smoothing radius
+float h; //smoothing radius
 float vol_comp_perc;
 float dens_fluc_perc;
 float* d_max_force;
@@ -625,9 +622,9 @@ int initialize() {
 	//Write boundary vtu file
 
 	float** boundary_point_data[] = { &boundary_mass };
-	size_pointData = sizeof(boundary_point_data) / sizeof(double);
+	int size_pointData = sizeof(boundary_point_data) / sizeof(double);
 	vec3d** boundary_vectorData[] = { &boundary_normal };
-	size_vectorData = sizeof(boundary_vectorData) / sizeof(double);
+	int size_vectorData = sizeof(boundary_vectorData) / sizeof(double);
 
 	std::string boundary_pointDataNames[] = { "psi" };
 	std::string boundary_vectorDataNames[] = { "normal" };
@@ -856,13 +853,13 @@ int initialize() {
 
 	pointData[0] = &DENSITY;
 	//pointData[1] = &PRESSURE;
-	size_pointData = sizeof(pointData) / sizeof(double);
+	int size_pointData = sizeof(pointData) / sizeof(double);
 
 	vectorData[0] = &VELOCITY;
 	//vectorData[1] = &PRESSURE_FORCE;
 	//vectorData[2] = &VISCOSITY_FORCE;
 	//vectorData[3] = &ST_FORCE;
-	size_vectorData = sizeof(vectorData) / sizeof(double);
+	int size_vectorData = sizeof(vectorData) / sizeof(double);
 
 	VTU_Writer(vtu_path, iteration, POSITION, N, pointData, vectorData, pointDataNames, vectorDataNames, size_pointData, size_vectorData, vtu_fullpath);
 
@@ -880,7 +877,7 @@ int initialize() {
 	gpuErrchk(cudaMallocPitch(&d_hashtable, &pitch, particles_per_row * sizeof(int), hashtable_size));
 	gpuErrchk(cudaMemcpy2D(d_hashtable, pitch, hashtable, particles_per_row * sizeof(int), particles_per_row * sizeof(int), hashtable_size, cudaMemcpyHostToDevice));
 
-	writeTimeKeeper(main_path);
+	writeTimeKeeper(main_path,max_rho_err);
 
 	std::cout << N << " Fluid particles\n"
 		<< B << " Boundary particles\n"
@@ -1090,14 +1087,14 @@ void multiprocessor_writer() {
 
 	pointData[0] = &write_density;
 	//pointData[1] = &write_pressure;
-	size_pointData = sizeof(pointData) / sizeof(double);
+	int size_pointData = sizeof(pointData) / sizeof(double);
 
 	vectorData[0] = &write_velocity;
 	//vectorData[1] = &write_presure_force;
 	//vectorData[2] = &write_viscosity_force;
 	//vectorData[3] = &write_st_force;
 	//vectorData[4] = &NORMAL;
-	size_vectorData = sizeof(vectorData) / sizeof(double);
+	int size_vectorData = sizeof(vectorData) / sizeof(double);
 
 	write_vtu = std::async(std::launch::async, VTU_Writer, vtu_path, iteration, write_position, N, pointData, vectorData, pointDataNames, vectorDataNames, size_pointData, size_vectorData, vtu_fullpath,2);
 	//auto done = std::chrono::high_resolution_clock::now();
