@@ -803,21 +803,21 @@ int initialize() {
 	gpuErrchk(cudaMemcpy(d_NORMAL, NORMAL, 3*T*sizeof(float), cudaMemcpyHostToDevice));
 
 	//Defining and allocating main density array
-	DENSITY = (float*)malloc(T * sizeof(float));
-	for (int i = 0; i < T; i++) {
+	DENSITY = (float*)malloc(N * sizeof(float));
+	for (int i = 0; i < N; i++) {
 		DENSITY[i] = 0.f;
 	}
 
-	gpuErrchk(cudaMalloc((void**)&d_DENSITY, T * sizeof(float)));
-	gpuErrchk(cudaMemcpy(d_DENSITY, DENSITY, T * sizeof(float), cudaMemcpyHostToDevice));
+	gpuErrchk(cudaMalloc((void**)&d_DENSITY, N * sizeof(float)));
+	gpuErrchk(cudaMemcpy(d_DENSITY, DENSITY, N * sizeof(float), cudaMemcpyHostToDevice));
 
 	//Defining and allocating main pressure array
-	float* PRESSURE = (float*)malloc(T * sizeof(float));
-	for (int i = 0; i < T; i++) {
+	float* PRESSURE = (float*)malloc(N * sizeof(float));
+	for (int i = 0; i < N; i++) {
 		PRESSURE[i] = 0;
 	}
 
-	gpuErrchk(cudaMalloc((void**)&d_PRESSURE, T * sizeof(float)));
+	gpuErrchk(cudaMalloc((void**)&d_PRESSURE, N * sizeof(float)));
 
 	//Defining and allocating main mass array
 	
@@ -869,8 +869,8 @@ int initialize() {
 	float** pointData[] = { &DENSITY }; // here the CPU pointers to the FLOAT variables that you want to write in the VTU must be defined
 	vec3d** vectorData[] = { &VELOCITY }; // here the CPU pointers to the VEC3D variables that you want to write in the VTU must be defined
 
-	int size_pointData = sizeof(pointData) / 8;
-	int size_vectorData = sizeof(vectorData) / 8;
+	size_pointData = sizeof(pointData) / 8;
+	size_vectorData = sizeof(vectorData) / 8;
 
 	VTU_Writer(vtu_path, iteration, POSITION, N, pointData, vectorData, pointDataNames, vectorDataNames, size_pointData, size_vectorData, vtu_fullpath);
 
@@ -918,14 +918,15 @@ int mainLoop() {
 	DensityCalc << <grid_size, block_size >> > (d_POSITION, d_MASS, d_DENSITY, h, invh, rho_0, particles_per_row, pitch, d_hashtable, hash, N);
 
 	// and the normal for each fluid particle
-	fluidNormal << <grid_size, block_size >> > (d_NORMAL, d_POSITION, d_MASS, d_DENSITY, rho_0, h,invh, hash,d_hashtable, particles_per_row,pitch, N);
 	
-	// -> compute forces Fi for viscosity, surface tension and gravity (gravity is only accounted later)
+	fluidNormal << <grid_size, block_size >> > (d_NORMAL, d_POSITION, d_MASS, d_DENSITY,d_TYPE, rho_0, h,invh, hash,d_hashtable, particles_per_row,pitch, N);
+	
+	// -> compute forces Fi for viscosity and surface tension (gravity is only accounted later)
 	nonPressureForces << <grid_size, block_size >> > (d_POSITION, d_VISCOSITY_FORCE, d_ST_FORCE, d_MASS, d_DENSITY, d_VELOCITY, d_NORMAL, gravity,d_TYPE, h, invh, rho_0, visc_const, st_const, particles_per_row, pitch,d_hashtable, hash, N);
 	
-	// -> set pressure pi(t) = 0 and set pressure pb(t) = 0
-	grid_size = T / block_size + 1;
-	resetPressure << <grid_size, block_size >> > (d_PRESSURE, T);
+	// -> set pressure pi(t) = 0 
+
+	resetPressure << <grid_size, block_size >> > (d_PRESSURE, N);
 	// here the step to set the pressure force value as 0 is ignored as it is done on later steps
 
 	// calculate the pressure coefficient as in Equation 8 of [1]
@@ -956,13 +957,14 @@ int mainLoop() {
 		// update distances to neighbors is unnecessary here
 
 		// -> predict density
-		DensityCalc << <grid_size, block_size >> > (d_PRED_POSITION, d_MASS, d_DENSITY, h, invh, rho_0, particles_per_row, pitch, d_hashtable, hash, T);
+		grid_size = N / block_size + 1;
+		DensityCalc << <grid_size, block_size >> > (d_PRED_POSITION, d_MASS, d_DENSITY, h, invh, rho_0, particles_per_row, pitch, d_hashtable, hash, N);
 
 		// -> predict density variation and -> update pressure
-		PressureCalc << <grid_size, block_size >> > (d_PRESSURE, d_DENSITY, rho_0, pressure_coeff, T);
+		PressureCalc << <grid_size, block_size >> > (d_PRESSURE, d_DENSITY, rho_0, pressure_coeff, N);
 
 		// -> compute pressure force
-		grid_size = N / block_size + 1;
+
 		PressureForceCalc << <grid_size, block_size >> > (d_PRED_POSITION, d_PRESSURE_FORCE, d_PRESSURE, d_MASS, d_DENSITY,d_TYPE, h, invh, particles_per_row, pitch, d_hashtable, hash, N);
 
 		_k_++;
@@ -972,6 +974,7 @@ int mainLoop() {
 
 	// -> compute new velocity and compute new position
 	positionAndVelocity << <grid_size, block_size >> > (d_POSITION, d_VELOCITY, d_POSITION, d_VELOCITY, d_PRESSURE_FORCE, d_VISCOSITY_FORCE, d_ST_FORCE, gravity, d_MASS, delta_t, N);
+
 	// -> compute new world collision
 	collisionHandler << <grid_size, block_size >> > (d_POSITION, d_VELOCITY, d_NORMAL, d_TYPE, d_hashtable, h, invh, pitch, hash, particles_per_row, BOUNDARY_DIAMETER, epsilon, N);
 

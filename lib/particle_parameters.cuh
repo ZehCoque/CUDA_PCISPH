@@ -359,16 +359,16 @@ __global__ void boundaryNormal(vec3d* normal,vec3d* points,vec3d b_initial, vec3
 }
 
 // This kernel calculates the fluid normal according to Equation between equations 2 and 3 of [4] (it does not have a number)
-__global__ void fluidNormal(vec3d* normal, vec3d* points, float* mass, float* density, float rho_0,float h, float invh, Hash hash, int* d_hashtable, int Ncols,size_t pitch, int size) {
+__global__ void fluidNormal(vec3d* normal, vec3d* points, float* mass, float* density, int* type, float rho_0, float h, float invh, Hash hash, int* d_hashtable, int Ncols, size_t pitch, int size) {
 
 	int index = getGlobalIdx_1D_1D();
-	
+
 	if (index >= size) {
 		return;
 	}
-	
+
 	assignToVec3d(&normal[index]);
-	
+
 	int hash_list[27];
 	bool skip = false;
 	int count = 0;
@@ -392,17 +392,21 @@ __global__ void fluidNormal(vec3d* normal, vec3d* points, float* mass, float* de
 				if (hash_index >= 0 && skip == false) {
 					int* row = (int*)((char*)d_hashtable + hash_index * pitch);
 					for (int t = 0; t < Ncols; t++) {
-						//CORE
+	
 						if (row[t] != -1) {
-							
+
 							float r = distance(points[index], points[row[t]]);
 							if (r <= h && r > 0) {
 
 								vec3d poly6_gradient = Poly6_Gradient(index, row[t], points, r, h, invh);
 								float tmp;
+								if (type[row[t]] == 0) {
+									tmp = h * mass[row[t]] / density[row[t]];
+								}
+								else if (type[row[t]] == 1) {
+									tmp = h * mass[row[t]] / rho_0;
+								}
 
-								tmp = h * mass[row[t]] / density[row[t]];
-								
 								normal[index].x += tmp * poly6_gradient.x;
 								normal[index].y += tmp * poly6_gradient.y;
 								normal[index].z += tmp * poly6_gradient.z;
@@ -461,7 +465,7 @@ __global__ void nonPressureForces(vec3d* points,vec3d* viscosity_force, vec3d* s
 
 								//Viscosity calculation
 
-								vec3d visc = ViscosityForce(index, row[t], mass, density, velocity, visc_const, rho_0, Viscosity_Laplacian(r, h, invh));
+								vec3d visc = ViscosityForce(index, row[t], mass, density, velocity, type[row[t]], visc_const, rho_0, Viscosity_Laplacian(r, h, invh));
 
 								//summation of calcualted value to main array
 								viscosity_force[index].x += visc.x;
@@ -484,6 +488,7 @@ __global__ void nonPressureForces(vec3d* points,vec3d* viscosity_force, vec3d* s
 			}
 		}
 	}
+	
 	return;
 }
 
@@ -668,7 +673,7 @@ __global__ void PressureCalc(float* pressure, float* density,float rho_0,float p
 }
 
 // Calculates pressure force according to [1] and [2]
-__global__ void PressureForceCalc(vec3d* points, vec3d* pressure_force,float* pressure, float* mass, float* density, const float h, const float invh, const int Ncols, size_t pitch, int* d_hashtable, Hash hash, int size) {
+__global__ void PressureForceCalc(vec3d* points, vec3d* pressure_force, float* pressure, float* mass, float* density, int* type, const float h, const float invh, const int Ncols, size_t pitch, int* d_hashtable, Hash hash, int size) {
 
 	int index = getGlobalIdx_1D_1D();
 
@@ -678,7 +683,7 @@ __global__ void PressureForceCalc(vec3d* points, vec3d* pressure_force,float* pr
 
 	//reseting vec3d value to 0
 	assignToVec3d(&pressure_force[index]);
-	
+
 	vec3d BB;
 	int hash_list[27];
 	bool skip = false;
@@ -704,15 +709,13 @@ __global__ void PressureForceCalc(vec3d* points, vec3d* pressure_force,float* pr
 					int* row = (int*)((char*)d_hashtable + hash_index * pitch);
 					for (int t = 0; t < Ncols; t++) {
 						if (row[t] != -1) {
-							
-							//CORE
 
 							float r = distance(points[index], points[row[t]]);
 							if (r <= h && r > 0) {
 
-								vec3d spiky_grad = Spiky_Gradient(index, row[t], points, r,  h,  invh);
-								vec3d p = PressureForce(index, row[t], pressure, mass, density, spiky_grad);
-								sum2Vec3d(&pressure_force[index],&p);
+								vec3d spiky_grad = Spiky_Gradient(index, row[t], points, r, h, invh);
+								vec3d p = PressureForce(index, row[t], pressure, mass, density, type[row[t]], spiky_grad);
+								sum2Vec3d(&pressure_force[index], &p);
 
 							}
 						}

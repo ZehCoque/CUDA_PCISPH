@@ -68,6 +68,7 @@ __device__ float ST_Kernel(float r, float h,float invh, int type)
 		else {
 			return 0.f;
 		}
+
 	}
 
 
