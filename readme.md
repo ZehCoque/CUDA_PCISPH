@@ -44,6 +44,14 @@ Please read [contributing.md](https://github.com/ZehCoque/CUDA_PCISPH/blob/maste
 
 This project was developed by ***José Antonio Rico Coque*** and ***Bartosz Powalka*** in [West Pomeranian University of Technology](https://www.zut.edu.pl/uczelnia/aktualnosci.html) (ZUT) on the [Faculty of Mechanical Engineering and Mechatronics](https://wimim.zut.edu.pl/index.php?id=11909).
 
+## Next Steps and Ideas
+
+1. Create an universal fluid and boundary particles positions generator, to create complex geometries with intersections and sharp edges;
+
+2. Add thermal equations to the analysis;
+
+3. Create a function to calculate the normal of boundary particles globally (which does not happen in this program);
+
 ## References
 
 [1](https://www.zora.uzh.ch/id/eprint/29726/1/pcisph.pdf) Solenthaler, B. & Pajarola, R. Predictive-Corrective Incompressible SPH. (2009)

@@ -4,27 +4,17 @@
 #include "common.cuh"
 #include "helper.cuh"
 
-__device__ vec3d ViscosityForce(int i, int j,float* mass, float* density,vec3d* velocity, int type, float visc_const,float rho_0, float Laplacian) {
+__device__ vec3d ViscosityForce(int i, int j,float* mass, float* density,vec3d* velocity, float visc_const,float rho_0, float Laplacian) {
 
 	vec3d viscosity;
 
-	if (type == 1) {
-		float tmp = mass[i] / density[i] * mass[j] / rho_0 * visc_const * Laplacian;
 
-		viscosity.x = tmp * (velocity[j].x - velocity[i].x);
-		viscosity.y = tmp * (velocity[j].y - velocity[i].y);
-		viscosity.z = tmp * (velocity[j].z - velocity[i].z);
+	float tmp = mass[i] / density[i] * mass[j] / density[j] * visc_const * Laplacian;
 
-	}
-	else {
-		//mass_i / density_i * visc_const * mass_j / density_j * (v_j - v_i) * Laplacian;
+	viscosity.x = tmp * (velocity[j].x - velocity[i].x);
+	viscosity.y = tmp * (velocity[j].y - velocity[i].y);
+	viscosity.z = tmp * (velocity[j].z - velocity[i].z);
 
-		float tmp = mass[i] / density[i] * mass[j] / density[j] * visc_const * Laplacian;
-
-		viscosity.x = tmp * (velocity[j].x - velocity[i].x);
-		viscosity.y = tmp * (velocity[j].y - velocity[i].y);
-		viscosity.z = tmp * (velocity[j].z - velocity[i].z);
-	}
 
 	return viscosity;
 
@@ -33,12 +23,11 @@ __device__ vec3d ViscosityForce(int i, int j,float* mass, float* density,vec3d* 
 __device__ vec3d STForce(int i, int j,float r, vec3d* points, float* mass, float* density, vec3d* normal,int type, float st_const,float rho_0,float ST_Kernel)
 {
 	vec3d st;
+	float tmp;
 
 	if (type == 0) {
 		vec3d cohesion;
 		vec3d curvature;
-
-		float tmp;
 
 		tmp = -st_const * mass[i] * mass[j] * ST_Kernel / r;
 
@@ -62,9 +51,12 @@ __device__ vec3d STForce(int i, int j,float r, vec3d* points, float* mass, float
 		
 	}
 	else if (type == 1) {
-		st.x = 0.f;
-		st.y = 0.f;
-		st.z = 0.f;
+
+		tmp = -st_const * mass[i] * mass[j] * ST_Kernel / r;
+
+		st.x = tmp * (points[i].x - points[j].x);
+		st.y = tmp * (points[i].y - points[j].y);
+		st.z = tmp * (points[i].z - points[j].z);
 
 	}
 	
@@ -72,18 +64,14 @@ __device__ vec3d STForce(int i, int j,float r, vec3d* points, float* mass, float
 
 }
 
-__device__ vec3d PressureForce(int i, int j, float* pressure, float* mass, float* density, int type, vec3d Spiky_Gradient) {
+__device__ vec3d PressureForce(int i, int j, float* pressure, float* mass, float* density, vec3d Spiky_Gradient) {
 
 	vec3d p;
 
 	float tmp;
 
-	if (type == 0) {
-		tmp = -mass[i] * mass[j] * (pressure[i] / powf(density[i], 2) + pressure[j] / powf(density[j], 2));
-	}
-	else {
-		tmp = -mass[i] * mass[j] * (pressure[i] / powf(density[i], 2));
-	}
+	tmp = -mass[i] * mass[j] * (pressure[i] / powf(density[i], 2) + pressure[j] / powf(density[j], 2));
+
 	
 	p.x = tmp * Spiky_Gradient.x;
 	p.y = tmp * Spiky_Gradient.y;

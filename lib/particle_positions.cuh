@@ -5,6 +5,13 @@
 #include "common.cuh"
 #include "common.cuh"
 
+//IMPORTANT NOTE: In the "main_function.cu" script, the initial and final positions of boundary and fluids particles are tweaked.
+// The user is defining the entire size of the prims and the box containing the fluid, but these positions must be corrected with the particle radii since the particles are ploted according to their central position.
+// See this link for a visual explanation -> https://media.giphy.com/media/lSDYIhgp7bO56xRCvZ/giphy.gif
+
+// This kernel makes a completely full prism with particles inside separated by the particle radii on the X and Z axis. 
+// For the Y axis, the distance is calculated using the height of an equilateral triangle (check this link https://i.imgur.com/EElCDGP.png for a visual explanation and this link https://i.imgur.com/ys0Abpn.jpg for an example).
+// This is called hexagonal packing and it reduces the empty space between particles.
 __global__ void makePrism(vec3d* position_arr, const float diameter, const vec3d initial_pos, const int NPD[], const int size) {
 
 	int index = getGlobalIdx_1D_1D();
@@ -20,18 +27,19 @@ __global__ void makePrism(vec3d* position_arr, const float diameter, const vec3d
 	// Hexagonal packing
 	if (j % 2 == 0) {
 		position_arr[index].x = initial_pos.x + i * diameter;
-		position_arr[index].y = initial_pos.y + j * diameter * powf(3, 1 / 2.f) / 2.f;
+		position_arr[index].y = initial_pos.y + j * diameter * powf(3.f, 1.f / 2.f) / 2.f;
 		position_arr[index].z = initial_pos.z + k * diameter;
 	}
 	else {
 		position_arr[index].x = initial_pos.x + i * diameter + diameter / 2.f;
-		position_arr[index].y = initial_pos.y + j * diameter * powf(3.f, 1 / 2.f) / 2.f;
+		position_arr[index].y = initial_pos.y + j * diameter * powf(3.f, 1.f / 2.f) / 2.f;
 		position_arr[index].z = initial_pos.z + k * diameter + diameter / 2.f;
 	}
 
 	return;
 };
 
+// This kernel makes a plane with the indicated initial, final and orientation
 __global__ void makePlane(vec3d* position_arr, const float diameter,const vec3d initial_pos,const int offset,const int orientation,const int size,const int NPD[]) {
 
 	int index = getGlobalIdx_1D_1D();
@@ -39,8 +47,6 @@ __global__ void makePlane(vec3d* position_arr, const float diameter,const vec3d 
 	if (index >= size) {
 		return;
 	}
-
-	//printf("%d\n", index);
 
 	// 1 for xy orientation
 	// 2 for xz orientation
@@ -73,6 +79,7 @@ __global__ void makePlane(vec3d* position_arr, const float diameter,const vec3d 
 	return;
 }
 
+// This is a function that uses the makePlane kernel to make an empty box with walls with 1 particle of thickness
 void makeBox(vec3d* position_arr, float diameter, vec3d initial_pos, vec3d final_pos, int block_size, int* D_NPD,int* NPD, int SIMULATION_DIMENSION) {
 	int offset = 0;
 	
@@ -94,7 +101,7 @@ void makeBox(vec3d* position_arr, float diameter, vec3d initial_pos, vec3d final
 	makePlane << <grid_size, block_size >> > (position_arr, diameter, initial_pos, offset, 1, size,D_NPD);
 
 	offset = offset + num_x * num_y * num_z;
-	//printf("%d\n",offset);
+
 	//second wall
 	vec3d tmp_initial_pos;
 	tmp_initial_pos.x = initial_pos.x;
@@ -107,7 +114,7 @@ void makeBox(vec3d* position_arr, float diameter, vec3d initial_pos, vec3d final
 	makePlane << <grid_size, block_size >> > (position_arr, diameter, tmp_initial_pos, offset, 1, size,D_NPD);
 
 	offset = offset + num_x * num_y * num_z;
-	//printf("%d\n",offset);
+
 	//third wall
 	tmp_initial_pos.x = initial_pos.x;
 	tmp_initial_pos.y = initial_pos.y;
@@ -128,7 +135,7 @@ void makeBox(vec3d* position_arr, float diameter, vec3d initial_pos, vec3d final
 	makePlane << <grid_size, block_size >> > (position_arr, diameter, tmp_initial_pos, offset, 2, size,D_NPD);
 
 	offset = offset + num_x * num_y * num_z;
-	//printf("%d\n",offset);
+
 	//forth wall
 	tmp_initial_pos.x = initial_pos.x;
 	tmp_initial_pos.y = final_pos.y;
@@ -140,7 +147,7 @@ void makeBox(vec3d* position_arr, float diameter, vec3d initial_pos, vec3d final
 	makePlane << <grid_size, block_size >> > (position_arr, diameter, tmp_initial_pos, offset, 2, size,D_NPD);
 
 	offset = offset + num_x * num_y * num_z;
-	//printf("%d\n",offset);
+
 	//fifth wall
 	num_x = 1;
 	num_y = NPD[1] - 2;
@@ -162,9 +169,8 @@ void makeBox(vec3d* position_arr, float diameter, vec3d initial_pos, vec3d final
 	makePlane << <grid_size, block_size >> > (position_arr, diameter, tmp_initial_pos, offset, 3, size,D_NPD);
 
 	offset = offset + num_x * num_y * num_z;
-	//printf("%d\n",offset);
-	//sixth wall
 
+	//sixth wall
 	tmp_initial_pos.x = final_pos.x;
 	tmp_initial_pos.y = initial_pos.y + diameter;
 	tmp_initial_pos.z = initial_pos.z + diameter;
