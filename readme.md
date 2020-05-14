@@ -66,7 +66,9 @@ This project was developed by ***José Antonio Rico Coque*** and ***Bartosz Powal
 
 ## Notes
 
-1. Some scripts of the code have descriptions. A good order to start reading my code is [main.cu](https://github.com/ZehCoque/CUDA_PCISPH/blob/master/src/main.cu) >> [main_functions.cu](https://github.com/ZehCoque/CUDA_PCISPH/blob/master/src/main_functions.cu) >> [particle_positions.cuh](https://github.com/ZehCoque/CUDA_PCISPH/blob/master/lib/particle_positions.cuh) >> [particle_parameters.cuh](https://github.com/ZehCoque/CUDA_PCISPH/blob/master/lib/particle_parameters.cuh)
+1. Some scripts of the code have descriptions. A good order to start reading my code is:
+
+[main.cu](https://github.com/ZehCoque/CUDA_PCISPH/blob/master/src/main.cu) >> [main_functions.cu](https://github.com/ZehCoque/CUDA_PCISPH/blob/master/src/main_functions.cu) >> [particle_positions.cuh](https://github.com/ZehCoque/CUDA_PCISPH/blob/master/lib/particle_positions.cuh) >> [particle_parameters.cuh](https://github.com/ZehCoque/CUDA_PCISPH/blob/master/lib/particle_parameters.cuh)
 
 2. All reference numbers in the code descriptions (noted by brackets []) are related to the reference section in this page.
 
