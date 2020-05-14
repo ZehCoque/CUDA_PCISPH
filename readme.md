@@ -64,6 +64,9 @@ This project was developed by ***José Antonio Rico Coque*** and ***Bartosz Powal
 
 [5](https://www.researchgate.net/publication/287403043_Sibernetic_A_software_complex_based_on_the_PCI_SPH_algorithm_aimed_at_simulation_problems_in_biomechanics?enrichId=rgreq-d8f63fd5090046989fd70b947df48139-XXX&enrichSource=Y292ZXJQYWdlOzI4NzQwMzA0MztBUzo2Njk4NzU4Mjc2NjY5NTFAMTUzNjcyMjI1MTU4OA%3D%3D&el=1_x_3&_esc=publicationCoverPdf) Palyanov, A. & Khayrulin, S. Sibernetic: A software complex based on the PCI SPH algorithm aimed at simulation problems in biomechanics. Russian Journal of Genetics: Applied Research 5, 635–641 (2015).
 
+## Notes
 
+1. Some scripts of the code have descriptions. A good order to start reading my code is [main.cu](https://github.com/ZehCoque/CUDA_PCISPH/blob/master/src/main.cu) >> [main_functions.cu](https://github.com/ZehCoque/CUDA_PCISPH/blob/master/src/main_functions.cu) >> [particle_positions.cuh](https://github.com/ZehCoque/CUDA_PCISPH/blob/master/lib/particle_positions.cuh) >> [particle_parameters.cuh](https://github.com/ZehCoque/CUDA_PCISPH/blob/master/lib/particle_parameters.cuh)
 
+2. All reference numbers in the code descriptions (noted by brackets []) are related to the reference section in this page.
 
