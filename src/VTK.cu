@@ -114,6 +114,60 @@ void VTK_Group(char vtk_group_path[], char vtu_path[], float time) {
 	return;
 }
 
+void reverse(char* str, int len)
+{
+	int i = 0, j = len - 1, temp;
+	while (i < j) {
+		temp = str[i];
+		str[i] = str[j];
+		str[j] = temp;
+		i++;
+		j--;
+	}
+}
+
+int intToStr(int x, char str[], int d)
+{
+	int i = 0;
+	while (x) {
+		str[i++] = (x % 10) + '0';
+		x = x / 10;
+	}
+
+	// If number of digits required is more, then 
+	// add 0s at the beginning 
+	while (i < d)
+		str[i++] = '0';
+
+	reverse(str, i);
+	str[i] = '\0';
+	return i;
+}
+
+void ftoa(float n, char* res, int afterpoint)
+{
+	// Extract integer part 
+	int ipart = (int)n;
+
+	// Extract floating part 
+	float fpart = n - (float)ipart;
+
+	// convert integer part to string 
+	int i = intToStr(ipart, res, 0);
+
+	// check for display option after point 
+	if (afterpoint != 0) {
+		res[i] = '.'; // add dot 
+
+		// Get the value of fraction part upto given no. 
+		// of points after dot. The third parameter  
+		// is needed to handle cases like 233.007 
+		fpart = fpart * pow(10, afterpoint);
+
+		intToStr((int)fpart, res + i + 1, afterpoint);
+	}
+}
+
 void readVTU(char* iter_path, vec3d* position, vec3d* velocity) {
 
 	std::ifstream vtu_file(iter_path);
@@ -190,15 +244,13 @@ void readVTU(char* iter_path, vec3d* position, vec3d* velocity) {
 
 	vtu_file.seekg(char_count, std::ios::beg);
 
-	//std::ofstream tmp;
-	//tmp.open("tmp.txt");
-
 	buff_index = 0;
 	vec_index = 0;
 	axis = 0;
 	float_buffer = new char[50];
+	bool contains_e = false;
 	for (char write2line; vtu_file.get(write2line);) {
-		//tmp << write2line;
+
 		if (write2line == 60) { //if the currect char is not equal to <
 			break;
 		}
@@ -206,7 +258,52 @@ void readVTU(char* iter_path, vec3d* position, vec3d* velocity) {
 			float_buffer[buff_index] = write2line;
 			buff_index++;
 		}
+		else if (write2line == 101) {
+			float_buffer[buff_index] = write2line;
+			buff_index++;
+			contains_e = true;
+		}
 		else if (write2line == 32 || write2line == 10) {
+
+			if (contains_e) {
+				char tmp_buff1[256];
+				char tmp_buff2[256];
+				int tmp_buff1_index = 0;
+				int tmp_buff2_index = 0;
+
+				int i = 0;
+
+				while (float_buffer[i] != 101){
+					tmp_buff1[tmp_buff1_index] = float_buffer[i];
+					tmp_buff1_index++;
+					i++;
+				}
+
+				i++;
+
+				for (i; i < strlen(float_buffer); i++) {
+					if (float_buffer[i] != 48) {
+						tmp_buff2[tmp_buff2_index] = float_buffer[i];
+						tmp_buff2_index++;
+					}
+				}
+
+				float val1 = (float)atof(tmp_buff1);
+				float val2 = (float)atof(tmp_buff2);
+
+				float val3 = val1 * powf(10,val2);
+
+				float_buffer = new char[50];
+
+				ftoa(val3, float_buffer,7);
+
+				contains_e = false;
+			}
+
+			if (write2line == 101) {
+				float_buffer = new char[50];
+				float_buffer[0] = 48;
+			}
 
 			if (axis == 0) {
 				velocity[vec_index].x = (float)atof(float_buffer);
