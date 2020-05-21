@@ -282,10 +282,8 @@ void readVTU(char* iter_path, vec3d* position, vec3d* velocity) {
 				i++;
 
 				for (i; i < strlen(float_buffer); i++) {
-					if (float_buffer[i] != 48) {
 						tmp_buff2[tmp_buff2_index] = float_buffer[i];
 						tmp_buff2_index++;
-					}
 				}
 
 				float val1 = (float)atof(tmp_buff1);
