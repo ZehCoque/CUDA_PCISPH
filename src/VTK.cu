@@ -179,6 +179,8 @@ void readVTU(char* iter_path, vec3d* position, vec3d* velocity) {
 	int buff_index = 0;
 	int vec_index = 0;
 	int axis = 0;
+	bool contains_e = false;
+
 	for (char write2line; vtu_file.get(write2line);) {
 		if (write2line == 60) { //if the currect char is not equal to <
 			break;
@@ -187,7 +189,45 @@ void readVTU(char* iter_path, vec3d* position, vec3d* velocity) {
 			float_buffer[buff_index] = write2line;
 			buff_index++;
 		}
+		else if (write2line == 101) {
+			float_buffer[buff_index] = write2line;
+			buff_index++;
+			contains_e = true;
+		}
 		else if (write2line == 32 || write2line == 10) {
+
+			if (contains_e) {
+				char tmp_buff1[256];
+				char tmp_buff2[256];
+				int tmp_buff1_index = 0;
+				int tmp_buff2_index = 0;
+
+				int i = 0;
+
+				while (float_buffer[i] != 101) {
+					tmp_buff1[tmp_buff1_index] = float_buffer[i];
+					tmp_buff1_index++;
+					i++;
+				}
+
+				i++;
+
+				for (i; i < strlen(float_buffer); i++) {
+					tmp_buff2[tmp_buff2_index] = float_buffer[i];
+					tmp_buff2_index++;
+				}
+
+				float val1 = (float)atof(tmp_buff1);
+				float val2 = (float)atof(tmp_buff2);
+
+				float val3 = val1 * powf(10, val2);
+
+				float_buffer = new char[50];
+
+				ftoa(val3, float_buffer, 7);
+
+				contains_e = false;
+			}
 			if (axis == 0) {
 				position[vec_index].x = (float)atof(float_buffer);
 				axis++;
@@ -248,7 +288,7 @@ void readVTU(char* iter_path, vec3d* position, vec3d* velocity) {
 	vec_index = 0;
 	axis = 0;
 	float_buffer = new char[50];
-	bool contains_e = false;
+	contains_e = false;
 	for (char write2line; vtu_file.get(write2line);) {
 
 		if (write2line == 60) { //if the currect char is not equal to <
