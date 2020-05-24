@@ -109,6 +109,7 @@
     <ClInclude Include="lib\VTK.cuh" />
   </ItemGroup>
   <ItemGroup>
+    <CudaCompile Include="open_gl.cu" />
     <CudaCompile Include="src\main.cu" />
     <CudaCompile Include="src\main_functions.cu" />
     <CudaCompile Include="src\utilities.cu" />
