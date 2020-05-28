@@ -10,9 +10,9 @@ __device__ float Poly6_Kernel(float r, float h, float invh)
 	return 1.5666814710f * invh9 * tmp * tmp * tmp;
 }
 
-__host__ __device__ vec3d Poly6_Gradient(int i, int j,vec3d* points, float r, float h, float invh) {
+__host__ __device__ float3 Poly6_Gradient(int i, int j,float3* points, float r, float h, float invh) {
 
-	vec3d poly6_grad;
+	float3 poly6_grad;
 
 	float tmp = 9.4000888263f * powf(invh, 9) * powf(powf(h,2)-powf(r,2),2);
 
@@ -24,10 +24,10 @@ __host__ __device__ vec3d Poly6_Gradient(int i, int j,vec3d* points, float r, fl
 
 }
 
-__device__ vec3d Viscosity_Gradient(int i, int j, vec3d* points, float r, float h, float invh)
+__device__ float3 Viscosity_Gradient(int i, int j, float3* points, float r, float h, float invh)
 {
 
-	vec3d visc_grad;
+	float3 visc_grad;
 
 	float invr = 1 / r;
 	
@@ -74,9 +74,9 @@ __device__ float ST_Kernel(float r, float h,float invh, int type)
 
 }
 
-__host__ __device__ vec3d Spiky_Gradient(int i, int j, vec3d* points, float r, float h, float invh) {
+__host__ __device__ float3 Spiky_Gradient(int i, int j, float3* points, float r, float h, float invh) {
 
-	vec3d spiky;
+	float3 spiky;
 
 	float tmp = -14.323944878f * powf(invh, 6) * powf(h - r, 2);
 

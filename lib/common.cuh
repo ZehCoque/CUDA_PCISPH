@@ -12,17 +12,13 @@
 #include <stdio.h>
 #include "dirent.h"
 #include <sstream>
-#include <vector>
 #include <algorithm>
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 
-struct vec3d
-{
-	float x, y, z;
-};
+typedef unsigned int uint;
 
 inline void gpuAssert(cudaError_t code, const char* file, int line, bool abort = true)
 {

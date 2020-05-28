@@ -4,9 +4,9 @@
 #include "common.cuh"
 #include "helper.cuh"
 
-__device__ vec3d ViscosityForce(int i, int j,float* mass, float* density,vec3d* velocity,int type, float visc_const,float rho_0, float Laplacian) {
+__device__ float3 ViscosityForce(int i, int j,float* mass, float* density,float3* velocity,int type, float visc_const,float rho_0, float Laplacian) {
 
-	vec3d viscosity;
+	float3 viscosity;
 
 	if (type == 1) {
 		float tmp = mass[i] / density[i] * mass[j] / rho_0 * visc_const * Laplacian;
@@ -29,14 +29,14 @@ __device__ vec3d ViscosityForce(int i, int j,float* mass, float* density,vec3d* 
 
 }
 
-__device__ vec3d STForce(int i, int j,float r, vec3d* points, float* mass, float* density, vec3d* normal,int type, float st_const,float rho_0,float ST_Kernel)
+__device__ float3 STForce(int i, int j,float r, float3* points, float* mass, float* density, float3* normal,int type, float st_const,float rho_0,float ST_Kernel)
 {
-	vec3d st;
+	float3 st;
 	float tmp;
 
 	if (type == 0) {
-		vec3d cohesion;
-		vec3d curvature;
+		float3 cohesion;
+		float3 curvature;
 
 		tmp = -st_const * mass[i] * mass[j] * ST_Kernel / r;
 
@@ -77,9 +77,9 @@ __device__ vec3d STForce(int i, int j,float r, vec3d* points, float* mass, float
 
 }
 
-__device__ vec3d PressureForce(int i, int j, float* pressure, float* mass, float* density, int type, vec3d Spiky_Gradient) {
+__device__ float3 PressureForce(int i, int j, float* pressure, float* mass, float* density, int type, float3 Spiky_Gradient) {
 
-	vec3d p;
+	float3 p;
 
 	float tmp;
 

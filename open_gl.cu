@@ -99,7 +99,7 @@ int main(int argc, char** argv)
     initGL(&argc, argv);
 
     printf("%s completed, returned %s\n", sSDKsample, (g_TotalErrors == 0) ? "OK" : "ERROR!");
-    exit(g_TotalErrors == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
+    //exit(g_TotalErrors == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
 }
 
 void computeFPS()

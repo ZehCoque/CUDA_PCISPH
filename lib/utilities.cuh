@@ -1,5 +1,6 @@
 #pragma once
 #include "common.cuh"
+#include <vector>
 #include <chrono>
 #include <cuda_runtime.h>
 #include "global_variables.cuh"

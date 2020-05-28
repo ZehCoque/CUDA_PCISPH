@@ -58,11 +58,11 @@ public:
 
     Hash(int);  // Constructor
 
-    __device__ void insertItem(int*,vec3d,int,float, size_t,int);
+    __device__ void insertItem(int*,float3,int,float, size_t,int);
 
-    __device__ int hashFunction(vec3d,float);
+    __device__ int hashFunction(float3,float);
     
-    //__device__ void getPossibleNeighbors(int*,int*, vec3d, float, float,int, size_t);
+    //__device__ void getPossibleNeighbors(int*,int*, float3, float, float,int, size_t);
 
 };
 
@@ -73,7 +73,7 @@ Hash::Hash(int b)
 }
 
 
-__device__ int Hash::hashFunction(vec3d point,float invh) {
+__device__ int Hash::hashFunction(float3 point,float invh) {
 
     int r_x,r_y,r_z;
     
@@ -85,7 +85,7 @@ __device__ int Hash::hashFunction(vec3d point,float invh) {
     return ((r_x ^ r_y ^ r_z) & (this->hashtable_size - 1));
 }
 
-__device__ void Hash::insertItem(int* hashtable, vec3d point, int point_id, float invh, size_t pitch, int Ncols)
+__device__ void Hash::insertItem(int* hashtable, float3 point, int point_id, float invh, size_t pitch, int Ncols)
 {
     int hash_index = hashFunction(point, invh);
     /*printf("[%g %g %g] -> %d\n", point.x, point.y, point.z, hash_index);*/
@@ -98,7 +98,7 @@ __device__ void Hash::insertItem(int* hashtable, vec3d point, int point_id, floa
     }
 }
 
-__global__ void hashParticlePositions(int * d_hashtable,vec3d* points, float invh,Hash hash,int size,size_t pitch,int Ncols){
+__global__ void hashParticlePositions(int * d_hashtable,float3* points, float invh,Hash hash,int size,size_t pitch,int Ncols){
 
     int index = getGlobalIdx_1D_1D();
     
@@ -115,7 +115,7 @@ __global__ void hashParticlePositions(int * d_hashtable,vec3d* points, float inv
 //
 //    float h = 2.5;
 //    int size = 3;
-//    vec3d* points = new vec3d[size];
+//    float3* points = new float3[size];
 //    points[0].x = 0.252;
 //    points[0].y = 1.524;
 //    points[0].z = 5.45;
@@ -130,7 +130,7 @@ __global__ void hashParticlePositions(int * d_hashtable,vec3d* points, float inv
 //
 //    const int hashtable_size = nextPrime(200);
 //
-//    vec3d* d_points;
+//    float3* d_points;
 //    gpuErrchk(cudaMalloc((void**)&d_points,  3*size*sizeof(float)));
 //    gpuErrchk(cudaMemcpy(d_points, points, 3 *size* sizeof(float), cudaMemcpyHostToDevice));
 //

@@ -12,7 +12,7 @@
 // This kernel makes a completely full prism with particles inside separated by the particle radii on the X and Z axis. 
 // For the Y axis, the distance is calculated using the height of an equilateral triangle (check this link https://i.imgur.com/EElCDGP.png for a visual explanation and this link https://i.imgur.com/ys0Abpn.jpg for an example).
 // This is called hexagonal packing and it reduces the empty space between particles.
-__global__ void makePrism(vec3d* position_arr, const float diameter, const vec3d initial_pos, const int NPD[], const int size) {
+__global__ void makePrism(float3* position_arr, const float diameter, const float3 initial_pos, const int NPD[], const int size) {
 
 	int index = getGlobalIdx_1D_1D();
 	
@@ -40,7 +40,7 @@ __global__ void makePrism(vec3d* position_arr, const float diameter, const vec3d
 };
 
 // This kernel makes a plane with the indicated initial, final and orientation
-__global__ void makePlane(vec3d* position_arr, const float diameter,const vec3d initial_pos,const int offset,const int orientation,const int size,const int NPD[]) {
+__global__ void makePlane(float3* position_arr, const float diameter,const float3 initial_pos,const int offset,const int orientation,const int size,const int NPD[]) {
 
 	int index = getGlobalIdx_1D_1D();
 
@@ -80,7 +80,7 @@ __global__ void makePlane(vec3d* position_arr, const float diameter,const vec3d 
 }
 
 // This is a function that uses the makePlane kernel to make an empty box with walls with 1 particle of thickness
-void makeBox(vec3d* position_arr, float diameter, vec3d initial_pos, vec3d final_pos, int block_size, int* D_NPD,int* NPD, int SIMULATION_DIMENSION) {
+void makeBox(float3* position_arr, float diameter, float3 initial_pos, float3 final_pos, int block_size, int* D_NPD,int* NPD, int SIMULATION_DIMENSION) {
 	int offset = 0;
 	
 	int num_x, num_y, num_z, size,grid_size;
@@ -103,7 +103,7 @@ void makeBox(vec3d* position_arr, float diameter, vec3d initial_pos, vec3d final
 	offset = offset + num_x * num_y * num_z;
 
 	//second wall
-	vec3d tmp_initial_pos;
+	float3 tmp_initial_pos;
 	tmp_initial_pos.x = initial_pos.x;
 	tmp_initial_pos.y = initial_pos.y;
 	tmp_initial_pos.z = final_pos.z;
