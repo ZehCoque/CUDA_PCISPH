@@ -6,28 +6,8 @@
 #include "helper.cuh"
 #include "forces.cuh"
 
-// simulation parameters
-struct SimParams
-{
-	float rho_0;
-	float h;
-	float invh;
-	float Ncols;
-	size_t pitch;
-	Hash hash;
-	uint N;
-	uint B;
-	uint T;
-	uint hashtable_size;
+__constant__ Hash hash;
 
-	float boundary_diameter;
-
-	float visc_const;
-	float st_const;
-	float epsilon;
-};
-
-__constant__ SimParams params;
 // NOTES:
 // 1. All functions with __global__ in front of its declaration and/or definition are called CUDA kernels and run ONLY in the GPU.
 // 2. In this file, all functions marked with ** are mostly the same, only changing its core. The functions are basically searching for particle neighbors in the hashing table and performing the required calculation with the results. The function core is defined with the //CORE comment
@@ -37,7 +17,7 @@ __global__ void boundaryPsi(float* psi, int* d_hashtable, float3* points) {
 	
 	int index = getGlobalIdx_1D_1D();
 
-	if (index >= params.B) {
+	if (index >= d_params.B) {
 		return;
 	}
 
@@ -49,11 +29,11 @@ __global__ void boundaryPsi(float* psi, int* d_hashtable, float3* points) {
 		for (int j = -1; j < 2; j++) {
 			for (int k = -1; k < 2; k++) {
 				float3 BB;
-				BB.x = points[index].x + i * params.h;
-				BB.y = points[index].y + j * params.h;
-				BB.z = points[index].z + k * params.h;
+				BB.x = points[index].x + i * d_params.h;
+				BB.y = points[index].y + j * d_params.h;
+				BB.z = points[index].z + k * d_params.h;
 
-				int hash_index = params.hash.hashFunction(BB, params.invh);
+				int hash_index = hash.hashFunction(BB, d_params.invh);
 				hash_list[count] = hash_index;
 				skip = false;
 				for (int t = 0; t < count; t++) {
@@ -63,14 +43,14 @@ __global__ void boundaryPsi(float* psi, int* d_hashtable, float3* points) {
 				}
 				count = count + 1;
 				if (hash_index >= 0 && skip == false) {
-					int* row = (int*)((char*)d_hashtable + hash_index * params.pitch);
-					for (int t = 0; t < params.Ncols; t++) {
+					int* row = (int*)((char*)d_hashtable + hash_index * d_params.pitch);
+					for (int t = 0; t < d_params.particles_per_row; t++) {
 						//CORE
 						if (row[t] != -1) {
 							
 							float r = distance(points[index], points[row[t]]);
-							if (r <= params.h) {
-								psi[index] += Poly6_Kernel(r, params.h, params.invh);
+							if (r <= d_params.h) {
+								psi[index] += Poly6_Kernel(r, d_params.h, d_params.invh);
 							}
 						}
 					}
@@ -79,7 +59,7 @@ __global__ void boundaryPsi(float* psi, int* d_hashtable, float3* points) {
 		}
 	}
 	
-	psi[index] = params.rho_0 / psi[index];
+	psi[index] = d_params.rho_0 / psi[index];
 	
 	return;
 
@@ -90,7 +70,7 @@ __global__ void boundaryNormal(float3* normal,float3* points,float3 b_initial, f
 
 	int index = getGlobalIdx_1D_1D();
 
-	if (index >= params.B) {
+	if (index >= d_params.B) {
 		return;
 	}
 
@@ -385,7 +365,7 @@ __global__ void fluidNormal(float3* normal, float3* points, float* mass, float* 
 
 	int index = getGlobalIdx_1D_1D();
 
-	if (index >= params.N) {
+	if (index >= d_params.N) {
 		return;
 	}
 
@@ -398,11 +378,11 @@ __global__ void fluidNormal(float3* normal, float3* points, float* mass, float* 
 		for (int j = -1; j < 2; j++) {
 			for (int k = -1; k < 2; k++) {
 				float3 BB;
-				BB.x = points[index].x + i * params.h;
-				BB.y = points[index].y + j * params.h;
-				BB.z = points[index].z + k * params.h;
+				BB.x = points[index].x + i * d_params.h;
+				BB.y = points[index].y + j * d_params.h;
+				BB.z = points[index].z + k * d_params.h;
 
-				int hash_index = params.hash.hashFunction(BB, params.invh);
+				int hash_index = hash.hashFunction(BB, d_params.invh);
 				hash_list[count] = hash_index;
 				skip = false;
 				for (int t = 0; t < count; t++) {
@@ -412,21 +392,21 @@ __global__ void fluidNormal(float3* normal, float3* points, float* mass, float* 
 				}
 				count = count + 1;
 				if (hash_index >= 0 && skip == false) {
-					int* row = (int*)((char*)d_hashtable + hash_index * params.pitch);
-					for (int t = 0; t < params.Ncols; t++) {
+					int* row = (int*)((char*)d_hashtable + hash_index * d_params.pitch);
+					for (int t = 0; t < d_params.particles_per_row; t++) {
 	
 						if (row[t] != -1) {
 
 							float r = distance(points[index], points[row[t]]);
-							if (r <= params.h && r > 0) {
+							if (r <= d_params.h && r > 0) {
 
-								float3 poly6_gradient = Poly6_Gradient(index, row[t], points, r, params.h, params.invh);
+								float3 poly6_gradient = Poly6_Gradient(index, row[t], points, r, d_params.h, d_params.invh);
 								float tmp;
 								if (type[row[t]] == 0) {
-									tmp = params.h * mass[row[t]] / density[row[t]];
+									tmp = d_params.h * mass[row[t]] / density[row[t]];
 								}
 								else if (type[row[t]] == 1) {
-									tmp = params.h * mass[row[t]] / params.rho_0;
+									tmp = d_params.h * mass[row[t]] / d_params.rho_0;
 								}
 
 								normal[index].x += tmp * poly6_gradient.x;
@@ -449,7 +429,7 @@ __global__ void nonPressureForces(float3* points,float3* viscosity_force, float3
 
 	int index = getGlobalIdx_1D_1D();
 
-	if (index >= params.N) {
+	if (index >= d_params.N) {
 		return;
 	}
 
@@ -464,11 +444,11 @@ __global__ void nonPressureForces(float3* points,float3* viscosity_force, float3
 		for (int j = -1; j < 2; j++) {
 			for (int k = -1; k < 2; k++) {
 				
-				BB.x = points[index].x + i * params.h;
-				BB.y = points[index].y + j * params.h;
-				BB.z = points[index].z + k * params.h;
+				BB.x = points[index].x + i * d_params.h;
+				BB.y = points[index].y + j * d_params.h;
+				BB.z = points[index].z + k * d_params.h;
 
-				int hash_index = params.hash.hashFunction(BB, params.invh);
+				int hash_index = hash.hashFunction(BB, d_params.invh);
 				hash_list[count] = hash_index;
 				skip = false;
 				for (int t = 0; t < count; t++) {
@@ -478,16 +458,16 @@ __global__ void nonPressureForces(float3* points,float3* viscosity_force, float3
 				}
 				count = count + 1;
 				if (hash_index >= 0 && skip == false) {
-					int* row = (int*)((char*)d_hashtable + hash_index * params.pitch);
-					for (int t = 0; t < params.Ncols; t++) {
+					int* row = (int*)((char*)d_hashtable + hash_index * d_params.pitch);
+					for (int t = 0; t < d_params.particles_per_row; t++) {
 						//CORE
 						if (row[t] != -1) {
 							float r = distance(points[index], points[row[t]]);
-							if (r <= params.h && r > 0) {
+							if (r <= d_params.h && r > 0) {
 
 								//Viscosity calculation
 
-								float3 visc = ViscosityForce(index, row[t], mass, density, velocity, type[row[t]], params.visc_const, params.rho_0, Viscosity_Laplacian(r, params.h, params.invh));
+								float3 visc = ViscosityForce(index, row[t], mass, density, velocity, type[row[t]], d_params.visc_const, d_params.rho_0, Viscosity_Laplacian(r, d_params.h, d_params.invh));
 
 								//summation of calcualted value to main array
 								viscosity_force[index].x += visc.x;
@@ -495,7 +475,7 @@ __global__ void nonPressureForces(float3* points,float3* viscosity_force, float3
 								viscosity_force[index].z += visc.z;
 
 								//Surface tension calculation
-								float3 st = STForce(index, row[t], r, points, mass, density, normal, type[row[t]], params.st_const, params.rho_0, ST_Kernel(r, params.h, params.invh, type[row[t]]));
+								float3 st = STForce(index, row[t], r, points, mass, density, normal, type[row[t]], d_params.st_const, d_params.rho_0, ST_Kernel(r, d_params.h, d_params.invh, type[row[t]]));
 
 								//summation of calculated value to main array
 								st_force[index].x += st.x;
@@ -522,7 +502,7 @@ __global__ void positionAndVelocity(float3* points1,float3* velocities1, float3*
 
 	int index = getGlobalIdx_1D_1D();
 
-	if (index >= params.N) {
+	if (index >= d_params.N) {
 		return;
 	}
 
@@ -546,7 +526,7 @@ __global__ void collisionHandler(float3* points, float3* velocities,float3* norm
 
 	int index = getGlobalIdx_1D_1D();
 
-	if (index >= params.N) {
+	if (index >= d_params.N) {
 		return;
 	}
 
@@ -563,11 +543,11 @@ __global__ void collisionHandler(float3* points, float3* velocities,float3* norm
 		for (int j = -1; j < 2; j++) {
 			for (int k = -1; k < 2; k++) {
 
-				BB.x = points[index].x + i * params.h;
-				BB.y = points[index].y + j * params.h;
-				BB.z = points[index].z + k * params.h;
+				BB.x = points[index].x + i * d_params.h;
+				BB.y = points[index].y + j * d_params.h;
+				BB.z = points[index].z + k * d_params.h;
 
-				int hash_index = params.hash.hashFunction(BB, params.invh);
+				int hash_index = hash.hashFunction(BB, d_params.invh);
 				hash_list[count] = hash_index;
 				skip = false;
 				for (int t = 0; t < count; t++) {
@@ -577,12 +557,12 @@ __global__ void collisionHandler(float3* points, float3* velocities,float3* norm
 				}
 				count = count + 1;
 				if (hash_index >= 0 && skip == false) {
-					int* row = (int*)((char*)d_hashtable + hash_index * params.pitch);
-					for (int t = 0; t < params.Ncols; t++) {
+					int* row = (int*)((char*)d_hashtable + hash_index * d_params.pitch);
+					for (int t = 0; t < d_params.particles_per_row; t++) {
 						//CORE
 						if (row[t] != -1 && type[row[t]] == 1) {
 							float r = distance(points[index], points[row[t]]);
-							float w_c_ib = fmaxf((params.boundary_diameter - r) / params.boundary_diameter,0.f);
+							float w_c_ib = fmaxf((d_params.boundary_diameter - r) / d_params.boundary_diameter,0.f);
 							float3 n_b = normal[row[t]];
 							
 							n_c_i.x += n_b.x * w_c_ib;
@@ -590,7 +570,7 @@ __global__ void collisionHandler(float3* points, float3* velocities,float3* norm
 							n_c_i.z += n_b.z * w_c_ib;
 
 							w_c_ib_sum += w_c_ib;
-							w_c_ib_second_sum += w_c_ib * (params.boundary_diameter - r);
+							w_c_ib_second_sum += w_c_ib * (d_params.boundary_diameter - r);
 						}
 					}
 				}
@@ -618,9 +598,9 @@ __global__ void collisionHandler(float3* points, float3* velocities,float3* norm
 	v_n.y = dot * n_c_i.y;
 	v_n.z = dot * n_c_i.z;
 
-	velocities[index].x = params.epsilon * (velocities[index].x - v_n.x);
-	velocities[index].y = params.epsilon * (velocities[index].x - v_n.y);
-	velocities[index].z = params.epsilon * (velocities[index].x - v_n.z);
+	velocities[index].x = d_params.epsilon * (velocities[index].x - v_n.x);
+	velocities[index].y = d_params.epsilon * (velocities[index].x - v_n.y);
+	velocities[index].z = d_params.epsilon * (velocities[index].x - v_n.z);
 
 	return;
 }
@@ -630,7 +610,7 @@ __global__ void DensityCalc(float3* points, float* mass, float* density,int* d_h
 
 	int index = getGlobalIdx_1D_1D();
 
-	if (index >= params.N) {
+	if (index >= d_params.N) {
 		return;
 	}
 
@@ -644,11 +624,11 @@ __global__ void DensityCalc(float3* points, float* mass, float* density,int* d_h
 		for (int j = -1; j < 2; j++) {
 			for (int k = -1; k < 2; k++) {
 
-				BB.x = points[index].x + i * params.h;
-				BB.y = points[index].y + j * params.h;
-				BB.z = points[index].z + k * params.h;
+				BB.x = points[index].x + i * d_params.h;
+				BB.y = points[index].y + j * d_params.h;
+				BB.z = points[index].z + k * d_params.h;
 
-				int hash_index = params.hash.hashFunction(BB, params.invh);
+				int hash_index = hash.hashFunction(BB, d_params.invh);
 				hash_list[count] = hash_index;
 				skip = false;
 				for (int t = 0; t < count; t++) {
@@ -658,15 +638,15 @@ __global__ void DensityCalc(float3* points, float* mass, float* density,int* d_h
 				}
 				count = count + 1;
 				if (hash_index >= 0 && skip == false) {
-					int* row = (int*)((char*)d_hashtable + hash_index * params.pitch);
-					for (int t = 0; t < params.Ncols; t++) {
+					int* row = (int*)((char*)d_hashtable + hash_index * d_params.pitch);
+					for (int t = 0; t < d_params.particles_per_row; t++) {
 
 						//CORE
 
 						if (row[t] != -1) {
 							float r = distance(points[index], points[row[t]]);
-							if (r <= params.h) {
-								density[index] += mass[row[t]] * Poly6_Kernel(r, params.h, params.invh);
+							if (r <= d_params.h) {
+								density[index] += mass[row[t]] * Poly6_Kernel(r, d_params.h, d_params.invh);
 								
 							}
 						}
@@ -699,7 +679,7 @@ __global__ void PressureForceCalc(float3* points, float3* pressure_force, float*
 
 	int index = getGlobalIdx_1D_1D();
 
-	if (index >= params.N) {
+	if (index >= d_params.N) {
 		return;
 	}
 
@@ -714,11 +694,11 @@ __global__ void PressureForceCalc(float3* points, float3* pressure_force, float*
 		for (int j = -1; j < 2; j++) {
 			for (int k = -1; k < 2; k++) {
 
-				BB.x = points[index].x + i * params.h;
-				BB.y = points[index].y + j * params.h;
-				BB.z = points[index].z + k * params.h;
+				BB.x = points[index].x + i * d_params.h;
+				BB.y = points[index].y + j * d_params.h;
+				BB.z = points[index].z + k * d_params.h;
 
-				int hash_index = params.hash.hashFunction(BB, params.invh);
+				int hash_index = hash.hashFunction(BB, d_params.invh);
 				hash_list[count] = hash_index;
 				skip = false;
 				for (int t = 0; t < count; t++) {
@@ -728,14 +708,14 @@ __global__ void PressureForceCalc(float3* points, float3* pressure_force, float*
 				}
 				count = count + 1;
 				if (hash_index >= 0 && skip == false) {
-					int* row = (int*)((char*)d_hashtable + hash_index * params.pitch);
-					for (int t = 0; t < params.Ncols; t++) {
+					int* row = (int*)((char*)d_hashtable + hash_index * d_params.pitch);
+					for (int t = 0; t < d_params.particles_per_row; t++) {
 						if (row[t] != -1) {
 
 							float r = distance(points[index], points[row[t]]);
-							if (r <= params.h && r > 0) {
+							if (r <= d_params.h && r > 0) {
 
-								float3 spiky_grad = Spiky_Gradient(index, row[t], points, r, params.h, params.invh);
+								float3 spiky_grad = Spiky_Gradient(index, row[t], points, r, d_params.h, d_params.invh);
 								float3 p = PressureForce(index, row[t], pressure, mass, density, type[row[t]], spiky_grad);
 								sum2Vec3d(&pressure_force[index], &p);
 
@@ -784,16 +764,16 @@ __global__ void getMaxVandF(float* max_velocity, float* max_force, float3* veloc
 }
 
 //resets the hashtable to a clean state (full of -1)
-__global__ void hashtableReset(int* d_hashtable) {
+__global__ void hashtableReset() {
 
 	int index = getGlobalIdx_1D_1D();
 
-	if (index >= params.hashtable_size) {
+	if (index >= d_params.hashtable_size) {
 		return;
 	}
 
-	int* row = (int*)((char*)d_hashtable + index * params.pitch);
-	for (int t = 0; t < params.Ncols; t++) {
+	int* row = (int*)((char*)d_params.d_hashtable + index * d_params.pitch);
+	for (int t = 0; t < d_params.particles_per_row; t++) {
 		row[t] = -1;
 	}
 

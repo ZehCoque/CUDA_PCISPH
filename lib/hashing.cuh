@@ -58,11 +58,9 @@ public:
 
     Hash(int);  // Constructor
 
-    __device__ void insertItem(int*,float3,int,float, size_t,int);
+    __device__ void insertItem(float3,int);
 
     __device__ int hashFunction(float3,float);
-    
-    //__device__ void getPossibleNeighbors(int*,int*, float3, float, float,int, size_t);
 
 };
 
@@ -80,17 +78,16 @@ __device__ int Hash::hashFunction(float3 point,float invh) {
     r_x = static_cast<int>(floor(point.x * invh)) * this->p1;
     r_y = static_cast<int>(floor(point.y * invh)) * this->p2;
     r_z = static_cast<int>(floor(point.z * invh)) * this->p3;
-    //printf("[%g %g %g] -> %d\n", point.x, point.y, point.z, (r_x ^ r_y ^ r_z) & this->hashtable_size);
-    //printf("%d %d %d\n", (r_x ^ r_y ^ r_z), this->hashtable_size,(r_x ^ r_y ^ r_z) % this->hashtable_size);
+
     return ((r_x ^ r_y ^ r_z) & (this->hashtable_size - 1));
 }
 
-__device__ void Hash::insertItem(int* hashtable, float3 point, int point_id, float invh, size_t pitch, int Ncols)
+__device__ void Hash::insertItem(float3 point, int point_id)
 {
     int hash_index = hashFunction(point, invh);
-    /*printf("[%g %g %g] -> %d\n", point.x, point.y, point.z, hash_index);*/
-    int* row_a = (int*)((char*)hashtable + hash_index * pitch);
-    for (int i = 0; i < Ncols; i++) {
+
+    int* row_a = (int*)((char*)d_params.d_hashtable + hash_index * d_params.pitch);
+    for (int i = 0; i < d_params.particles_per_row; i++) {
         atomicCAS(&row_a[i], -1, point_id);
         if (row_a[i] == point_id) {
             return;
@@ -98,7 +95,7 @@ __device__ void Hash::insertItem(int* hashtable, float3 point, int point_id, flo
     }
 }
 
-__global__ void hashParticlePositions(int * d_hashtable,float3* points, float invh,Hash hash,int size,size_t pitch,int Ncols){
+__global__ void hashParticlePositions(float3* points = d_params.d_POSITION, uint size = d_params.N){
 
     int index = getGlobalIdx_1D_1D();
     
@@ -106,7 +103,7 @@ __global__ void hashParticlePositions(int * d_hashtable,float3* points, float in
         return;
     }
 
-    hash.insertItem(d_hashtable,points[index],index,invh, pitch, Ncols);
+    hash.insertItem(points[index],index);
     
     return;
 }
