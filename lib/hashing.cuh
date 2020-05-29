@@ -46,34 +46,22 @@ int nextPrime(int N)
     return prime;
 }
 
-__host__ __device__ class Hash
-{
-private:
-    unsigned int p1 = 73856093;
-    unsigned int p2 = 19349669;
-    unsigned int p3 = 83492791;
-             
-public:
+__device__ int hashFunction(float3 point, float invh) {
 
-    __device__ void insertItem(float3,int);
-
-    __device__ int hashFunction(float3,float);
-
-};
-
-
-__device__ int Hash::hashFunction(float3 point, float invh) {
+    int p1 = 73856093;
+    int p2 = 19349669;
+    int p3 = 83492791;
 
     int r_x, r_y, r_z;
 
-    r_x = static_cast<int>(floor(point.x * invh)) * this->p1;
-    r_y = static_cast<int>(floor(point.y * invh)) * this->p2;
-    r_z = static_cast<int>(floor(point.z * invh)) * this->p3;
+    r_x = static_cast<int>(floor(point.x * invh)) * p1;
+    r_y = static_cast<int>(floor(point.y * invh)) * p2;
+    r_z = static_cast<int>(floor(point.z * invh)) * p3;
 
     return ((r_x ^ r_y ^ r_z) & (d_params.hashtable_size - 1));
 }
 
-__device__ void Hash::insertItem(float3 point, int point_id)
+__device__ void insertItem(float3 point, int point_id)
 {
     int hash_index = hashFunction(point, d_params.invh);
 
@@ -86,7 +74,7 @@ __device__ void Hash::insertItem(float3 point, int point_id)
     }
 }
 
-__global__ void hashParticlePositions(Hash hash, float3* points = d_params.d_POSITION, uint size = d_params.N) {
+__global__ void hashParticlePositions(float3* points = d_params.d_POSITION, uint size = d_params.N) {
 
     int index = getGlobalIdx_1D_1D();
 
@@ -94,12 +82,10 @@ __global__ void hashParticlePositions(Hash hash, float3* points = d_params.d_POS
         return;
     }
 
-    hash.insertItem(points[index], index);
+    insertItem(points[index], index);
 
     return;
 }
-
-__constant__ Hash d_hash; //hashtable stored in the constant memory of GPU
 
 //int main(){
 //

@@ -589,7 +589,7 @@ int initialize() {
 
 	grid_size = params.B / block_size + 1;
 	//this function makes a functional hashtable
-	hashParticlePositions << <grid_size, block_size >> > (d_hash, D_BOUNDARY_POSITIONS, params.B);
+	hashParticlePositions << <grid_size, block_size >> > (D_BOUNDARY_POSITIONS, params.B);
 	gpuErrchk(cudaPeekAtLastError()); // this is for checking if there was any error during the kernel execution
 	gpuErrchk(cudaDeviceSynchronize());
 	float* d_boundary_mass; //pointer to device memory of boundary "fake" mass ( or psi )
@@ -889,7 +889,7 @@ int mainLoop() {
 	
 	// then a new hashtable is created
 	grid_size = params.T / block_size + 1;
-	hashParticlePositions << <grid_size, block_size >> > (d_hash);
+	hashParticlePositions << <grid_size, block_size >> > ();
 
 	// -> for each particle i do
 
@@ -934,7 +934,7 @@ int mainLoop() {
 		grid_size = params.hashtable_size / block_size + 1;
 		hashtableReset << <grid_size, block_size >> > ();
 		grid_size = params.T / block_size + 1;
-		hashParticlePositions << <grid_size, block_size >> > (d_hash);
+		hashParticlePositions << <grid_size, block_size >> > ();
 
 		// update distances to neighbors is unnecessary here
 
@@ -1055,8 +1055,13 @@ int mainLoop() {
 		//edit PVD (group) file with the correct information
 		rewritePVD(main_path);
 
-		gpuErrchk(cudaMemcpy(d_params.d_POSITION, position, 3 * params.N * sizeof(float), cudaMemcpyHostToDevice));
-		gpuErrchk(cudaMemcpy(d_params.d_VELOCITY, velocity, 3 * params.N * sizeof(float), cudaMemcpyHostToDevice));
+		void* d_params_gpu_pptr;
+		cudaGetSymbolAddress(&d_params_gpu_pptr, &d_params);
+		SimParams* d_params_gpu_ptr = (SimParams*)d_params_gpu_pptr;
+		SimParams d_params_gpu = d_params_gpu_ptr[0];
+
+		gpuErrchk(cudaMemcpy(d_params_gpu.d_POSITION, position, 3 * params.N * sizeof(float), cudaMemcpyHostToDevice));
+		gpuErrchk(cudaMemcpy(d_params_gpu.d_VELOCITY, velocity, 3 * params.N * sizeof(float), cudaMemcpyHostToDevice));
 
 		gpuErrchk(cudaPeekAtLastError());
 		gpuErrchk(cudaDeviceSynchronize());
@@ -1101,13 +1106,18 @@ void multiprocessor_writer() {
 	float* write_pressure = (float*)malloc(params.N * sizeof(float));
 	float* write_density = (float*)malloc(params.N * sizeof(float));
 
-	gpuErrchk(cudaMemcpy(write_position, d_params.d_POSITION, params.N * sizeof(float3), cudaMemcpyDeviceToHost));
-	gpuErrchk(cudaMemcpy(write_velocity, d_params.d_VELOCITY, params.N * sizeof(float3), cudaMemcpyDeviceToHost));
-	gpuErrchk(cudaMemcpy(write_p_force, d_params.d_PRESSURE_FORCE, params.N * sizeof(float3), cudaMemcpyDeviceToHost));
-	gpuErrchk(cudaMemcpy(write_st_force, d_params.d_ST_FORCE, params.N * sizeof(float3), cudaMemcpyDeviceToHost));
-	gpuErrchk(cudaMemcpy(write_v_force, d_params.d_VISCOSITY_FORCE, params.N * sizeof(float3), cudaMemcpyDeviceToHost));
-	gpuErrchk(cudaMemcpy(write_density, d_params.d_DENSITY, params.N * sizeof(float), cudaMemcpyDeviceToHost));
-	gpuErrchk(cudaMemcpy(write_pressure, d_params.d_PRESSURE, params.N * sizeof(float), cudaMemcpyDeviceToHost));
+	void* d_params_gpu_pptr;
+	cudaGetSymbolAddress(&d_params_gpu_pptr, &d_params);
+	SimParams* d_params_gpu_ptr = (SimParams*)d_params_gpu_pptr;
+	SimParams d_params_gpu = d_params_gpu_ptr[0];
+
+	gpuErrchk(cudaMemcpy(write_position, d_params_gpu.d_POSITION, params.N * sizeof(float3), cudaMemcpyDeviceToHost));
+	gpuErrchk(cudaMemcpy(write_velocity, d_params_gpu.d_VELOCITY, params.N * sizeof(float3), cudaMemcpyDeviceToHost));
+	gpuErrchk(cudaMemcpy(write_p_force, d_params_gpu.d_PRESSURE_FORCE, params.N * sizeof(float3), cudaMemcpyDeviceToHost));
+	gpuErrchk(cudaMemcpy(write_st_force, d_params_gpu.d_ST_FORCE, params.N * sizeof(float3), cudaMemcpyDeviceToHost));
+	gpuErrchk(cudaMemcpy(write_v_force, d_params_gpu.d_VISCOSITY_FORCE, params.N * sizeof(float3), cudaMemcpyDeviceToHost));
+	gpuErrchk(cudaMemcpy(write_density, d_params_gpu.d_DENSITY, params.N * sizeof(float), cudaMemcpyDeviceToHost));
+	gpuErrchk(cudaMemcpy(write_pressure, d_params_gpu.d_PRESSURE, params.N * sizeof(float), cudaMemcpyDeviceToHost));
 
 	float** pointData[] = { &write_density, &write_pressure };
 	float3** vectorData[] = { &write_velocity, &write_p_force, &write_v_force, &write_st_force };

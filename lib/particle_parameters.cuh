@@ -31,7 +31,7 @@ __global__ void boundaryPsi(float* psi, float3* points) {
 				BB.y = points[index].y + j * d_params.h;
 				BB.z = points[index].z + k * d_params.h;
 
-				int hash_index = d_hash.hashFunction(BB, d_params.invh);
+				int hash_index = hashFunction(BB, d_params.invh);
 				hash_list[count] = hash_index;
 				skip = false;
 				for (int t = 0; t < count; t++) {
@@ -380,7 +380,7 @@ __global__ void fluidNormal() {
 				BB.y = d_params.d_POSITION[index].y + j * d_params.h;
 				BB.z = d_params.d_POSITION[index].z + k * d_params.h;
 
-				int hash_index = d_hash.hashFunction(BB, d_params.invh);
+				int hash_index = hashFunction(BB, d_params.invh);
 				hash_list[count] = hash_index;
 				skip = false;
 				for (int t = 0; t < count; t++) {
@@ -446,7 +446,7 @@ __global__ void nonPressureForces() {
 				BB.y = d_params.d_POSITION[index].y + j * d_params.h;
 				BB.z = d_params.d_POSITION[index].z + k * d_params.h;
 
-				int hash_index = d_hash.hashFunction(BB, d_params.invh);
+				int hash_index = hashFunction(BB, d_params.invh);
 				hash_list[count] = hash_index;
 				skip = false;
 				for (int t = 0; t < count; t++) {
@@ -495,8 +495,8 @@ __global__ void nonPressureForces() {
 // A kernel to calculate d_params.d_VELOCITY and positions according to the applyed forces
 __global__ void positionAndVelocity(float3* position1,float3* velocity1, float3* position2, float3* velocity2,float delta_t) {
 
-	// array 1 -> Will be changed by this kernel
-	// array 2 -> Wont be changed by this kernel
+	// allocation_type = 1 -> arrays that initiate with 1
+	// 2 -> Wont be changed by this kernel
 
 	int index = getGlobalIdx_1D_1D();
 
@@ -545,7 +545,7 @@ __global__ void collisionHandler() {
 				BB.y = d_params.d_POSITION[index].y + j * d_params.h;
 				BB.z = d_params.d_POSITION[index].z + k * d_params.h;
 
-				int hash_index = d_hash.hashFunction(BB, d_params.invh);
+				int hash_index = hashFunction(BB, d_params.invh);
 				hash_list[count] = hash_index;
 				skip = false;
 				for (int t = 0; t < count; t++) {
@@ -626,7 +626,7 @@ __global__ void DensityCalc() {
 				BB.y = d_params.d_POSITION[index].y + j * d_params.h;
 				BB.z = d_params.d_POSITION[index].z + k * d_params.h;
 
-				int hash_index = d_hash.hashFunction(BB, d_params.invh);
+				int hash_index = hashFunction(BB, d_params.invh);
 				hash_list[count] = hash_index;
 				skip = false;
 				for (int t = 0; t < count; t++) {
@@ -696,7 +696,7 @@ __global__ void PressureForceCalc() {
 				BB.y = d_params.d_POSITION[index].y + j * d_params.h;
 				BB.z = d_params.d_POSITION[index].z + k * d_params.h;
 
-				int hash_index = d_hash.hashFunction(BB, d_params.invh);
+				int hash_index = hashFunction(BB, d_params.invh);
 				hash_list[count] = hash_index;
 				skip = false;
 				for (int t = 0; t < count; t++) {

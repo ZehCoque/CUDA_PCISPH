@@ -71,7 +71,7 @@ __device__ float ST_Kernel(float r, float h,float invh, int type)
 
 	}
 
-
+	return 0.f;
 }
 
 __host__ __device__ float3 Spiky_Gradient(int i, int j, float3* points, float r, float h, float invh) {
