@@ -1,6 +1,5 @@
 #include "VTK.cuh"
 #include "utilities.cuh"
-//#include <string.h>
 
 void VTU_Writer(char path[], int iteration, float3* points, int numberOfPoints, float** pointData[], float3** vectorData[], std::string pointDataNames[], std::string vectorDataNames[], int size_pointData, int size_vectorData, char* fullpath, int type)
 {

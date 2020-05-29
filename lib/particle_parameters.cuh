@@ -6,14 +6,12 @@
 #include "helper.cuh"
 #include "forces.cuh"
 
-__constant__ Hash hash;
-
 // NOTES:
 // 1. All functions with __global__ in front of its declaration and/or definition are called CUDA kernels and run ONLY in the GPU.
 // 2. In this file, all functions marked with ** are mostly the same, only changing its core. The functions are basically searching for particle neighbors in the hashing table and performing the required calculation with the results. The function core is defined with the //CORE comment
 
-// This kernel calculates the boundary "fake" mass (psi) as defined by Equation 5 of [3]
-__global__ void boundaryPsi(float* psi, int* d_hashtable, float3* points) {
+// This kernel calculates the boundary "fake" d_params.d_MASS (psi) as defined by Equation 5 of [3]
+__global__ void boundaryPsi(float* psi, float3* points) {
 	
 	int index = getGlobalIdx_1D_1D();
 
@@ -33,7 +31,7 @@ __global__ void boundaryPsi(float* psi, int* d_hashtable, float3* points) {
 				BB.y = points[index].y + j * d_params.h;
 				BB.z = points[index].z + k * d_params.h;
 
-				int hash_index = hash.hashFunction(BB, d_params.invh);
+				int hash_index = d_hash.hashFunction(BB, d_params.invh);
 				hash_list[count] = hash_index;
 				skip = false;
 				for (int t = 0; t < count; t++) {
@@ -43,7 +41,7 @@ __global__ void boundaryPsi(float* psi, int* d_hashtable, float3* points) {
 				}
 				count = count + 1;
 				if (hash_index >= 0 && skip == false) {
-					int* row = (int*)((char*)d_hashtable + hash_index * d_params.pitch);
+					int* row = (int*)((char*)d_params.d_hashtable + hash_index * d_params.pitch);
 					for (int t = 0; t < d_params.particles_per_row; t++) {
 						//CORE
 						if (row[t] != -1) {
@@ -66,7 +64,7 @@ __global__ void boundaryPsi(float* psi, int* d_hashtable, float3* points) {
 }
 
 // This kernel calculates the boundary Normal in a "hardcode" way. It is not a very good approach and it works only with the interior of boxes
-__global__ void boundaryNormal(float3* normal,float3* points,float3 b_initial, float3 b_final) {
+__global__ void boundaryNormal(float3* points, float3* normal, float3 b_initial, float3 b_final) {
 
 	int index = getGlobalIdx_1D_1D();
 
@@ -361,7 +359,7 @@ __global__ void boundaryNormal(float3* normal,float3* points,float3 b_initial, f
 }
 
 // This kernel calculates the fluid normal according to Equation between equations 2 and 3 of [4] (it does not have a number)
-__global__ void fluidNormal(float3* normal, float3* points, float* mass, float* density, int* type, int* d_hashtable) {
+__global__ void fluidNormal() {
 
 	int index = getGlobalIdx_1D_1D();
 
@@ -369,7 +367,7 @@ __global__ void fluidNormal(float3* normal, float3* points, float* mass, float* 
 		return;
 	}
 
-	assignToVec3d(&normal[index]);
+	assignToVec3d(&d_params.d_NORMAL[index]);
 
 	int hash_list[27];
 	bool skip = false;
@@ -378,11 +376,11 @@ __global__ void fluidNormal(float3* normal, float3* points, float* mass, float* 
 		for (int j = -1; j < 2; j++) {
 			for (int k = -1; k < 2; k++) {
 				float3 BB;
-				BB.x = points[index].x + i * d_params.h;
-				BB.y = points[index].y + j * d_params.h;
-				BB.z = points[index].z + k * d_params.h;
+				BB.x = d_params.d_POSITION[index].x + i * d_params.h;
+				BB.y = d_params.d_POSITION[index].y + j * d_params.h;
+				BB.z = d_params.d_POSITION[index].z + k * d_params.h;
 
-				int hash_index = hash.hashFunction(BB, d_params.invh);
+				int hash_index = d_hash.hashFunction(BB, d_params.invh);
 				hash_list[count] = hash_index;
 				skip = false;
 				for (int t = 0; t < count; t++) {
@@ -392,26 +390,26 @@ __global__ void fluidNormal(float3* normal, float3* points, float* mass, float* 
 				}
 				count = count + 1;
 				if (hash_index >= 0 && skip == false) {
-					int* row = (int*)((char*)d_hashtable + hash_index * d_params.pitch);
+					int* row = (int*)((char*)d_params.d_hashtable + hash_index * d_params.pitch);
 					for (int t = 0; t < d_params.particles_per_row; t++) {
 	
 						if (row[t] != -1) {
 
-							float r = distance(points[index], points[row[t]]);
+							float r = distance(d_params.d_POSITION[index], d_params.d_POSITION[row[t]]);
 							if (r <= d_params.h && r > 0) {
 
-								float3 poly6_gradient = Poly6_Gradient(index, row[t], points, r, d_params.h, d_params.invh);
+								float3 poly6_gradient = Poly6_Gradient(index, row[t], d_params.d_POSITION, r, d_params.h, d_params.invh);
 								float tmp;
-								if (type[row[t]] == 0) {
-									tmp = d_params.h * mass[row[t]] / density[row[t]];
+								if (d_params.d_TYPE[row[t]] == 0) {
+									tmp = d_params.h * d_params.d_MASS[row[t]] / d_params.d_DENSITY[row[t]];
 								}
-								else if (type[row[t]] == 1) {
-									tmp = d_params.h * mass[row[t]] / d_params.rho_0;
+								else if (d_params.d_TYPE[row[t]] == 1) {
+									tmp = d_params.h * d_params.d_MASS[row[t]] / d_params.rho_0;
 								}
 
-								normal[index].x += tmp * poly6_gradient.x;
-								normal[index].y += tmp * poly6_gradient.y;
-								normal[index].z += tmp * poly6_gradient.z;
+								d_params.d_NORMAL[index].x += tmp * poly6_gradient.x;
+								d_params.d_NORMAL[index].y += tmp * poly6_gradient.y;
+								d_params.d_NORMAL[index].z += tmp * poly6_gradient.z;
 							}
 						}
 					}
@@ -425,7 +423,7 @@ __global__ void fluidNormal(float3* normal, float3* points, float* mass, float* 
 
 // This kernel calculates the viscosity (according to [5]), surface tension and adhesion (according to [4]) forces.
 // Note: The adhesion and surface tension forces are calculated in the same functions to conserve memory and lines of code
-__global__ void nonPressureForces(float3* points,float3* viscosity_force, float3* st_force,float* mass,float* density, float3* velocity,float3* normal, float3 gravity, int* type,int* d_hashtable) {
+__global__ void nonPressureForces() {
 
 	int index = getGlobalIdx_1D_1D();
 
@@ -433,8 +431,8 @@ __global__ void nonPressureForces(float3* points,float3* viscosity_force, float3
 		return;
 	}
 
-	assignToVec3d(&viscosity_force[index]);
-	assignToVec3d(&st_force[index]);
+	assignToVec3d(&d_params.d_VISCOSITY_FORCE[index]);
+	assignToVec3d(&d_params.d_ST_FORCE[index]);
 
 	float3 BB;
 	int hash_list[27];
@@ -444,11 +442,11 @@ __global__ void nonPressureForces(float3* points,float3* viscosity_force, float3
 		for (int j = -1; j < 2; j++) {
 			for (int k = -1; k < 2; k++) {
 				
-				BB.x = points[index].x + i * d_params.h;
-				BB.y = points[index].y + j * d_params.h;
-				BB.z = points[index].z + k * d_params.h;
+				BB.x = d_params.d_POSITION[index].x + i * d_params.h;
+				BB.y = d_params.d_POSITION[index].y + j * d_params.h;
+				BB.z = d_params.d_POSITION[index].z + k * d_params.h;
 
-				int hash_index = hash.hashFunction(BB, d_params.invh);
+				int hash_index = d_hash.hashFunction(BB, d_params.invh);
 				hash_list[count] = hash_index;
 				skip = false;
 				for (int t = 0; t < count; t++) {
@@ -458,29 +456,29 @@ __global__ void nonPressureForces(float3* points,float3* viscosity_force, float3
 				}
 				count = count + 1;
 				if (hash_index >= 0 && skip == false) {
-					int* row = (int*)((char*)d_hashtable + hash_index * d_params.pitch);
+					int* row = (int*)((char*)d_params.d_hashtable + hash_index * d_params.pitch);
 					for (int t = 0; t < d_params.particles_per_row; t++) {
 						//CORE
 						if (row[t] != -1) {
-							float r = distance(points[index], points[row[t]]);
+							float r = distance(d_params.d_POSITION[index], d_params.d_POSITION[row[t]]);
 							if (r <= d_params.h && r > 0) {
 
 								//Viscosity calculation
 
-								float3 visc = ViscosityForce(index, row[t], mass, density, velocity, type[row[t]], d_params.visc_const, d_params.rho_0, Viscosity_Laplacian(r, d_params.h, d_params.invh));
+								float3 visc = ViscosityForce(index, row[t], d_params.d_MASS, d_params.d_DENSITY, d_params.d_VELOCITY, d_params.d_TYPE[row[t]], d_params.visc_const, d_params.rho_0, Viscosity_Laplacian(r, d_params.h, d_params.invh));
 
 								//summation of calcualted value to main array
-								viscosity_force[index].x += visc.x;
-								viscosity_force[index].y += visc.y;
-								viscosity_force[index].z += visc.z;
+								d_params.d_VISCOSITY_FORCE[index].x += visc.x;
+								d_params.d_VISCOSITY_FORCE[index].y += visc.y;
+								d_params.d_VISCOSITY_FORCE[index].z += visc.z;
 
 								//Surface tension calculation
-								float3 st = STForce(index, row[t], r, points, mass, density, normal, type[row[t]], d_params.st_const, d_params.rho_0, ST_Kernel(r, d_params.h, d_params.invh, type[row[t]]));
+								float3 st = STForce(index, row[t], r, d_params.d_POSITION, d_params.d_MASS, d_params.d_DENSITY, d_params.d_NORMAL, d_params.d_TYPE[row[t]], d_params.st_const, d_params.rho_0, ST_Kernel(r, d_params.h, d_params.invh, d_params.d_TYPE[row[t]]));
 
 								//summation of calculated value to main array
-								st_force[index].x += st.x;
-								st_force[index].y += st.y;
-								st_force[index].z += st.z;
+								d_params.d_ST_FORCE[index].x += st.x;
+								d_params.d_ST_FORCE[index].y += st.y;
+								d_params.d_ST_FORCE[index].z += st.z;
 
 								
 							}
@@ -494,8 +492,8 @@ __global__ void nonPressureForces(float3* points,float3* viscosity_force, float3
 	return;
 }
 
-// A kernel to calculate velocities and positions according to the applyed forces
-__global__ void positionAndVelocity(float3* points1,float3* velocities1, float3* points2, float3* velocities2, float3* pressure_force, float3* viscosity_force, float3* st_force,float3 gravity,float* mass,float delta_t) {
+// A kernel to calculate d_params.d_VELOCITY and positions according to the applyed forces
+__global__ void positionAndVelocity(float3* position1,float3* velocity1, float3* position2, float3* velocity2,float delta_t) {
 
 	// array 1 -> Will be changed by this kernel
 	// array 2 -> Wont be changed by this kernel
@@ -506,23 +504,23 @@ __global__ void positionAndVelocity(float3* points1,float3* velocities1, float3*
 		return;
 	}
 
-	float tmp = delta_t / mass[index];
+	float tmp = delta_t / d_params.d_MASS[index];
 
-	//calculating velocity
-	velocities1[index].x = velocities2[index].x + (pressure_force[index].x + viscosity_force[index].x + st_force[index].x + gravity.x * mass[index]) * (tmp);
-	velocities1[index].y = velocities2[index].y + (pressure_force[index].y + viscosity_force[index].y + st_force[index].y + gravity.y * mass[index]) * (tmp);
-	velocities1[index].z = velocities2[index].z + (pressure_force[index].z + viscosity_force[index].z + st_force[index].z + gravity.z * mass[index]) * (tmp);
+	//calculating d_params.d_VELOCITY
+	velocity1[index].x = velocity2[index].x + (d_params.d_PRESSURE_FORCE[index].x + d_params.d_VISCOSITY_FORCE[index].x + d_params.d_ST_FORCE[index].x + d_params.gravity.x * d_params.d_MASS[index]) * (tmp);
+	velocity1[index].y = velocity2[index].y + (d_params.d_PRESSURE_FORCE[index].y + d_params.d_VISCOSITY_FORCE[index].y + d_params.d_ST_FORCE[index].y + d_params.gravity.y * d_params.d_MASS[index]) * (tmp);
+	velocity1[index].z = velocity2[index].z + (d_params.d_PRESSURE_FORCE[index].z + d_params.d_VISCOSITY_FORCE[index].z + d_params.d_ST_FORCE[index].z + d_params.gravity.z * d_params.d_MASS[index]) * (tmp);
 
 	//calculating position
-	points1[index].x = points2[index].x + delta_t * velocities1[index].x;
-	points1[index].y = points2[index].y + delta_t * velocities1[index].y;
-	points1[index].z = points2[index].z + delta_t * velocities1[index].z;
+	position1[index].x = position2[index].x + delta_t * velocity1[index].x;
+	position1[index].y = position2[index].y + delta_t * velocity1[index].y;
+	position1[index].z = position2[index].z + delta_t * velocity1[index].z;
 
 	return;
 }
 
 // A collision handler according to [2]
-__global__ void collisionHandler(float3* points, float3* velocities,float3* normal,int* type,int* d_hashtable) {
+__global__ void collisionHandler() {
 
 	int index = getGlobalIdx_1D_1D();
 
@@ -543,11 +541,11 @@ __global__ void collisionHandler(float3* points, float3* velocities,float3* norm
 		for (int j = -1; j < 2; j++) {
 			for (int k = -1; k < 2; k++) {
 
-				BB.x = points[index].x + i * d_params.h;
-				BB.y = points[index].y + j * d_params.h;
-				BB.z = points[index].z + k * d_params.h;
+				BB.x = d_params.d_POSITION[index].x + i * d_params.h;
+				BB.y = d_params.d_POSITION[index].y + j * d_params.h;
+				BB.z = d_params.d_POSITION[index].z + k * d_params.h;
 
-				int hash_index = hash.hashFunction(BB, d_params.invh);
+				int hash_index = d_hash.hashFunction(BB, d_params.invh);
 				hash_list[count] = hash_index;
 				skip = false;
 				for (int t = 0; t < count; t++) {
@@ -557,13 +555,13 @@ __global__ void collisionHandler(float3* points, float3* velocities,float3* norm
 				}
 				count = count + 1;
 				if (hash_index >= 0 && skip == false) {
-					int* row = (int*)((char*)d_hashtable + hash_index * d_params.pitch);
+					int* row = (int*)((char*)d_params.d_hashtable + hash_index * d_params.pitch);
 					for (int t = 0; t < d_params.particles_per_row; t++) {
 						//CORE
-						if (row[t] != -1 && type[row[t]] == 1) {
-							float r = distance(points[index], points[row[t]]);
+						if (row[t] != -1 && d_params.d_TYPE[row[t]] == 1) {
+							float r = distance(d_params.d_POSITION[index], d_params.d_POSITION[row[t]]);
 							float w_c_ib = fmaxf((d_params.boundary_diameter - r) / d_params.boundary_diameter,0.f);
-							float3 n_b = normal[row[t]];
+							float3 n_b = d_params.d_NORMAL[row[t]];
 							
 							n_c_i.x += n_b.x * w_c_ib;
 							n_c_i.y += n_b.y * w_c_ib;
@@ -587,26 +585,26 @@ __global__ void collisionHandler(float3* points, float3* velocities,float3* norm
 	float inv_norm_normal = 1 / norm3df(n_c_i.x, n_c_i.y, n_c_i.z);
 	float inv_w = 1 / w_c_ib_sum;
 
-	points[index].x += n_c_i.x * inv_norm_normal * w_c_ib_second_sum * inv_w;
-	points[index].y += n_c_i.y * inv_norm_normal * w_c_ib_second_sum * inv_w;
-	points[index].z += n_c_i.z * inv_norm_normal * w_c_ib_second_sum * inv_w;
+	d_params.d_POSITION[index].x += n_c_i.x * inv_norm_normal * w_c_ib_second_sum * inv_w;
+	d_params.d_POSITION[index].y += n_c_i.y * inv_norm_normal * w_c_ib_second_sum * inv_w;
+	d_params.d_POSITION[index].z += n_c_i.z * inv_norm_normal * w_c_ib_second_sum * inv_w;
 
 	//calculating new velocity
-	float dot = dot_product(velocities[index], normal[index]);
+	float dot = dot_product(d_params.d_VELOCITY[index], d_params.d_NORMAL[index]);
 	float3 v_n;
 	v_n.x = dot * n_c_i.x;
 	v_n.y = dot * n_c_i.y;
 	v_n.z = dot * n_c_i.z;
 
-	velocities[index].x = d_params.epsilon * (velocities[index].x - v_n.x);
-	velocities[index].y = d_params.epsilon * (velocities[index].x - v_n.y);
-	velocities[index].z = d_params.epsilon * (velocities[index].x - v_n.z);
+	d_params.d_VELOCITY[index].x = d_params.epsilon * (d_params.d_VELOCITY[index].x - v_n.x);
+	d_params.d_VELOCITY[index].y = d_params.epsilon * (d_params.d_VELOCITY[index].x - v_n.y);
+	d_params.d_VELOCITY[index].z = d_params.epsilon * (d_params.d_VELOCITY[index].x - v_n.z);
 
 	return;
 }
 
-// A kernel to compute density according to all references
-__global__ void DensityCalc(float3* points, float* mass, float* density,int* d_hashtable) {
+// A kernel to compute d_params.d_DENSITY according to all references
+__global__ void DensityCalc() {
 
 	int index = getGlobalIdx_1D_1D();
 
@@ -614,7 +612,7 @@ __global__ void DensityCalc(float3* points, float* mass, float* density,int* d_h
 		return;
 	}
 
-	density[index] = 0.f;
+	d_params.d_DENSITY[index] = 0.f;
 	
 	float3 BB;
 	int hash_list[27];
@@ -624,11 +622,11 @@ __global__ void DensityCalc(float3* points, float* mass, float* density,int* d_h
 		for (int j = -1; j < 2; j++) {
 			for (int k = -1; k < 2; k++) {
 
-				BB.x = points[index].x + i * d_params.h;
-				BB.y = points[index].y + j * d_params.h;
-				BB.z = points[index].z + k * d_params.h;
+				BB.x = d_params.d_POSITION[index].x + i * d_params.h;
+				BB.y = d_params.d_POSITION[index].y + j * d_params.h;
+				BB.z = d_params.d_POSITION[index].z + k * d_params.h;
 
-				int hash_index = hash.hashFunction(BB, d_params.invh);
+				int hash_index = d_hash.hashFunction(BB, d_params.invh);
 				hash_list[count] = hash_index;
 				skip = false;
 				for (int t = 0; t < count; t++) {
@@ -638,15 +636,15 @@ __global__ void DensityCalc(float3* points, float* mass, float* density,int* d_h
 				}
 				count = count + 1;
 				if (hash_index >= 0 && skip == false) {
-					int* row = (int*)((char*)d_hashtable + hash_index * d_params.pitch);
+					int* row = (int*)((char*)d_params.d_hashtable + hash_index * d_params.pitch);
 					for (int t = 0; t < d_params.particles_per_row; t++) {
 
 						//CORE
 
 						if (row[t] != -1) {
-							float r = distance(points[index], points[row[t]]);
+							float r = distance(d_params.d_POSITION[index], d_params.d_POSITION[row[t]]);
 							if (r <= d_params.h) {
-								density[index] += mass[row[t]] * Poly6_Kernel(r, d_params.h, d_params.invh);
+								d_params.d_DENSITY[index] += d_params.d_MASS[row[t]] * Poly6_Kernel(r, d_params.h, d_params.invh);
 								
 							}
 						}
@@ -659,23 +657,23 @@ __global__ void DensityCalc(float3* points, float* mass, float* density,int* d_h
 	return;
 }
 
-// calculates pressure according to [1] and [2]
-__global__ void PressureCalc(float* pressure, float* density,float rho_0,float pressure_coeff,int size) {
+// calculates d_params.d_PRESSURE according to [1] and [2]
+__global__ void PressureCalc(float pressure_coeff) {
 	
 	int index = getGlobalIdx_1D_1D();
 
-	if (index >= size || (density[index] - rho_0) <= 0) {
+	if (index >= d_params.N || (d_params.d_DENSITY[index] - d_params.rho_0) <= 0) {
 		return;
 	}
 
-	pressure[index] += (density[index] - rho_0) * pressure_coeff;
+	d_params.d_PRESSURE[index] += (d_params.d_DENSITY[index] - d_params.rho_0) * pressure_coeff;
 	
 
 	return;
 }
 
-// Calculates pressure force according to [1] and [2]
-__global__ void PressureForceCalc(float3* points, float3* pressure_force, float* pressure, float* mass, float* density, int* type, int* d_hashtable) {
+// Calculates d_params.d_PRESSURE force according to [1] and [2]
+__global__ void PressureForceCalc() {
 
 	int index = getGlobalIdx_1D_1D();
 
@@ -684,7 +682,7 @@ __global__ void PressureForceCalc(float3* points, float3* pressure_force, float*
 	}
 
 	//reseting float3 value to 0
-	assignToVec3d(&pressure_force[index]);
+	assignToVec3d(&d_params.d_PRESSURE_FORCE[index]);
 
 	float3 BB;
 	int hash_list[27];
@@ -694,11 +692,11 @@ __global__ void PressureForceCalc(float3* points, float3* pressure_force, float*
 		for (int j = -1; j < 2; j++) {
 			for (int k = -1; k < 2; k++) {
 
-				BB.x = points[index].x + i * d_params.h;
-				BB.y = points[index].y + j * d_params.h;
-				BB.z = points[index].z + k * d_params.h;
+				BB.x = d_params.d_POSITION[index].x + i * d_params.h;
+				BB.y = d_params.d_POSITION[index].y + j * d_params.h;
+				BB.z = d_params.d_POSITION[index].z + k * d_params.h;
 
-				int hash_index = hash.hashFunction(BB, d_params.invh);
+				int hash_index = d_hash.hashFunction(BB, d_params.invh);
 				hash_list[count] = hash_index;
 				skip = false;
 				for (int t = 0; t < count; t++) {
@@ -708,16 +706,16 @@ __global__ void PressureForceCalc(float3* points, float3* pressure_force, float*
 				}
 				count = count + 1;
 				if (hash_index >= 0 && skip == false) {
-					int* row = (int*)((char*)d_hashtable + hash_index * d_params.pitch);
+					int* row = (int*)((char*)d_params.d_hashtable + hash_index * d_params.pitch);
 					for (int t = 0; t < d_params.particles_per_row; t++) {
 						if (row[t] != -1) {
 
-							float r = distance(points[index], points[row[t]]);
+							float r = distance(d_params.d_POSITION[index], d_params.d_POSITION[row[t]]);
 							if (r <= d_params.h && r > 0) {
 
-								float3 spiky_grad = Spiky_Gradient(index, row[t], points, r, d_params.h, d_params.invh);
-								float3 p = PressureForce(index, row[t], pressure, mass, density, type[row[t]], spiky_grad);
-								sum2Vec3d(&pressure_force[index], &p);
+								float3 spiky_grad = Spiky_Gradient(index, row[t], d_params.d_POSITION, r, d_params.h, d_params.invh);
+								float3 p = PressureForce(index, row[t], d_params.d_PRESSURE, d_params.d_MASS, d_params.d_DENSITY, d_params.d_TYPE[row[t]], spiky_grad);
+								sum2Vec3d(&d_params.d_PRESSURE_FORCE[index], &p);
 
 							}
 						}
@@ -730,30 +728,30 @@ __global__ void PressureForceCalc(float3* points, float3* pressure_force, float*
 	return;
 }
 
-// This kernel gets maximum values of velocity, force and density error and calculates the sum of all density errors
-__global__ void getMaxVandF(float* max_velocity, float* max_force, float3* velocities, float3* pressure_force, float3* viscosity_force, float3* st_force, float3 gravity,float* mass,float* density,float* sum_rho_error,float* max_rho_err,float rho_0,int size) {
+// This kernel gets maximum values of d_params.d_VELOCITY, force and d_params.d_DENSITY error and calculates the sum of all d_params.d_DENSITY errors
+__global__ void getMaxVandF(float* max_force,float* max_velocity, float* sum_rho_error,float* max_rho_err) {
 
 	int index = getGlobalIdx_1D_1D();
 
-	if (index >= size) {
+	if (index >= d_params.N) {
 		return;
 	}
 	
-	float max_p = maxValueInVec3D(pressure_force[index]);
-	float max_v = maxValueInVec3D(viscosity_force[index]);
-	float max_st = maxValueInVec3D(st_force[index]);
+	float max_p = maxValueInVec3D(d_params.d_PRESSURE_FORCE[index]);
+	float max_v = maxValueInVec3D(d_params.d_VISCOSITY_FORCE[index]);
+	float max_st = maxValueInVec3D(d_params.d_ST_FORCE[index]);
 
 	float3 g;
-	g.x = gravity.x * mass[index];
-	g.y = gravity.y * mass[index];
-	g.z = gravity.z * mass[index];
+	g.x = d_params.gravity.x * d_params.d_MASS[index];
+	g.y = d_params.gravity.y * d_params.d_MASS[index];
+	g.z = d_params.gravity.z * d_params.d_MASS[index];
 
 	float max_g = maxValueInVec3D(g);
 
 	atomicMaxFloat(max_force, fmaxf(max_p,fmaxf(max_v,fmaxf(max_st,max_g))));
-	atomicMaxFloat(max_velocity, maxValueInVec3D(velocities[index]));
+	atomicMaxFloat(max_velocity, maxValueInVec3D(d_params.d_VELOCITY[index]));
 
-	float rho_err = density[index] - rho_0;
+	float rho_err = d_params.d_DENSITY[index] - d_params.rho_0;
 
 	if (rho_err > 0) {
 		atomicAddFloat(sum_rho_error, rho_err);
@@ -781,7 +779,7 @@ __global__ void hashtableReset() {
 
 }
 
-//resets the value of max_volocity, max_force, sum of density error and max density error
+//resets the value of max_volocity, max_force, sum of d_params.d_DENSITY error and max d_params.d_DENSITY error
 __global__ void resetValues(float* max_velocity, float* max_force, float* sum_rho_err,float* max_rho_err) {
 	max_velocity[0] = 0.f;
 	max_force[0] = 0.f;
@@ -791,14 +789,14 @@ __global__ void resetValues(float* max_velocity, float* max_force, float* sum_rh
 }
 
 //resets pressure values
-__global__ void resetPressure(float* pressure, int size) {
+__global__ void resetPressure() {
 
 	int index = getGlobalIdx_1D_1D();
 
-	if (index >= size) {
+	if (index >= d_params.N) {
 		return;
 	}
 
-	pressure[index] = 0.f;
+	d_params.d_PRESSURE[index] = 0.f;
 	return;
 }

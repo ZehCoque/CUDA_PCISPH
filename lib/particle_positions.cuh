@@ -3,7 +3,6 @@
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include "common.cuh"
-#include "common.cuh"
 
 //IMPORTANT NOTE: In the "main_function.cu" script, the initial and final positions of boundary and fluids particles are tweaked.
 // The user is defining the entire size of the prims and the box containing the fluid, but these positions must be corrected with the particle radii since the particles are ploted according to their central position.

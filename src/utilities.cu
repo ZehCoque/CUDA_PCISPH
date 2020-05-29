@@ -380,3 +380,13 @@ int getLastIter(char* main_path) {
 	return max_value[0];
 
 }
+
+uint unsignedIntPow(int x, int p)
+{
+	if (p == 0) return 1;
+	if (p == 1) return x;
+
+	int tmp = unsignedIntPow(x, p / 2);
+	if (p % 2 == 0) return tmp * tmp;
+	else return x * tmp * tmp;
+}
