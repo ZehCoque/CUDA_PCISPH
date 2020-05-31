@@ -52,20 +52,6 @@ struct SimParams
 	float st_const; // surface tension constant
 	float epsilon; // dumping coefficient for collision
 
-	float3* d_POSITION; //stores the pointer to the position data in the GPU
-	float3* d_PRED_POSITION; //stores the pointer to the predicted position data in the GPU
-	float3* d_VELOCITY; //stores the pointer to the velocity data in the GPU
-	float3* d_PRED_VELOCITY; //stores the pointer to the predicted data in the GPU
-	float3* d_ST_FORCE; //stores the pointer to the surface tension force data in the GPU
-	float3* d_VISCOSITY_FORCE; //stores the pointer to the viscosity force data in the GPU
-	float3* d_PRESSURE_FORCE; //stores the pointer to the pressure force data in the GPU
-	float3* d_NORMAL; //stores the pointer to the normal data in the GPU
-	float* DENSITY; //stores the pointer to the density data in the CPU
-	float* d_DENSITY; //stores the pointer to the density data in the GPU
-	float* d_PRESSURE; //stores the pointer to the pressure data in the GPU
-	float* d_MASS; //stores the pointer to the mass data in the GPU
-	int* d_TYPE; //stores the pointer to the type data in the GPU
-	int* d_hashtable; //stores the pointer to the hashtable data in the GPU
 	float3 gravity; //stores the pointer to the gravity data in the CPU
 
 };

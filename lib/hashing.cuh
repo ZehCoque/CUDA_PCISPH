@@ -46,7 +46,7 @@ int nextPrime(int N)
     return prime;
 }
 
-__device__ int hashFunction(float3 point, float invh) {
+__device__ int hashFunction(float3 point) {
 
     int p1 = 73856093;
     int p2 = 19349669;
@@ -54,18 +54,18 @@ __device__ int hashFunction(float3 point, float invh) {
 
     int r_x, r_y, r_z;
 
-    r_x = static_cast<int>(floor(point.x * invh)) * p1;
-    r_y = static_cast<int>(floor(point.y * invh)) * p2;
-    r_z = static_cast<int>(floor(point.z * invh)) * p3;
+    r_x = static_cast<int>(floor(point.x * d_params.invh)) * p1;
+    r_y = static_cast<int>(floor(point.y * d_params.invh)) * p2;
+    r_z = static_cast<int>(floor(point.z * d_params.invh)) * p3;
 
     return ((r_x ^ r_y ^ r_z) & (d_params.hashtable_size - 1));
 }
 
-__device__ void insertItem(float3 point, int point_id)
+__device__ void insertItem(float3 point, int point_id, int* hashtable)
 {
-    int hash_index = hashFunction(point, d_params.invh);
+    int hash_index = hashFunction(point);
 
-    int* row_a = (int*)((char*)d_params.d_hashtable + hash_index * d_params.pitch);
+    int* row_a = (int*)((char*)hashtable + hash_index * d_params.pitch);
     for (int i = 0; i < d_params.particles_per_row; i++) {
         atomicCAS(&row_a[i], -1, point_id);
         if (row_a[i] == point_id) {
@@ -74,16 +74,16 @@ __device__ void insertItem(float3 point, int point_id)
     }
 }
 
-__global__ void hashParticlePositions(float3* points = d_params.d_POSITION, uint size = d_params.N) {
+__global__ void hashParticlePositions(float3* position, uint size, int* hashtable) {
 
     int index = getGlobalIdx_1D_1D();
 
     if (index >= size) {
         return;
     }
-
-    insertItem(points[index], index);
-
+    printf("%g\n", d_params.invh);
+    insertItem(position[index], index, hashtable);
+    
     return;
 }
 

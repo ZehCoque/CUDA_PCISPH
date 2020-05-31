@@ -34,6 +34,8 @@ float B_INITIAL_POSITION[3]; //boundary particles final position
 float B_FINAL_POSITION[3]; //boundary particles final position
 float V_INITIAL[3]; //initial velocity defined by the user
 
+
+
 //controlling iteration number and simulation time
 int iteration = 1; //iteration counter
 float simulation_time; //in seconds
@@ -44,8 +46,21 @@ int block_size;
 int grid_size;
 
 //PCISPH variables
-float invh; //inverse of the smoothing radius
-float h; //smoothing radius
+float3* d_POSITION; //stores the pointer to the position data in the GPU
+float3* d_PRED_POSITION; //stores the pointer to the predicted position data in the GPU
+float3* d_VELOCITY; //stores the pointer to the velocity data in the GPU
+float3* d_PRED_VELOCITY; //stores the pointer to the predicted data in the GPU
+float3* d_ST_FORCE; //stores the pointer to the surface tension force data in the GPU
+float3* d_VISCOSITY_FORCE; //stores the pointer to the viscosity force data in the GPU
+float3* d_PRESSURE_FORCE; //stores the pointer to the pressure force data in the GPU
+float3* d_NORMAL; //stores the pointer to the normal data in the GPU
+float* DENSITY; //stores the pointer to the density data in the CPU
+float* d_DENSITY; //stores the pointer to the density data in the GPU
+float* d_PRESSURE; //stores the pointer to the pressure data in the GPU
+float* d_MASS; //stores the pointer to the mass data in the GPU
+int* d_TYPE; //stores the pointer to the type data in the GPU
+int* d_hashtable; //stores the pointer to the hashtable data in the GPU
+
 float vol_comp_perc; //user defined volume compression rate <- defined in section 3.3 of [2]
 float dens_fluc_perc; //user defined density fluctuation rate <- defined in section 3.3 of [2]
 float* d_max_force; // GPU pointer to max_force variable
@@ -496,8 +511,8 @@ int initialize() {
 	params.N = NPD[0] * NPD[1] * NPD[2]; //number of fluid particles
 	int SIM_SIZE = params.N * SIMULATION_DIMENSION; //size of the fluid part of the simulation
 	const int x = 40; // Number of particles inside the smoothing length
-	h = powf(3.f * VOLUME * x / (4.f * (float)M_PI * params.N), 1.f / 3.f); //smoothing length
-	invh = 1 / h; // inverse of smoothing length (this is calculated to make things faster in the main loop)
+	params.h = powf(3.f * VOLUME * x / (4.f * (float)M_PI * params.N), 1.f / 3.f); //smoothing length
+	params.invh = 1 / params.h; // inverse of smoothing length (this is calculated to make things faster in the main loop)
 
 	float3 f_initial; //initial position taking in account the offset of the particle radius
 	f_initial.x = F_INITIAL_POSITION[0] + PARTICLE_RADIUS; 
@@ -521,8 +536,8 @@ int initialize() {
 	//check "particle_positions.cuh" file in /lib folder for more details
 	makePrism << <grid_size, block_size >> > (D_FLUID_POSITIONS, PARTICLE_DIAMETER, f_initial, D_NPD, params.N);
 
-	BOUNDARY_DIAMETER = h/2; //defining the diameter of a boundary particle as stated in section 3.2 in [2]
-	BOUNDARY_RADIUS = h/4;
+	BOUNDARY_DIAMETER = params.h/2; //defining the diameter of a boundary particle as stated in section 3.2 in [2]
+	BOUNDARY_RADIUS = params.h/4;
 
 	// Get number per dimension (NPD) of BOUNDARY particles without compact packing (assuming use of makebox function)
 	for (int i = 0; i < 3; i++) {
@@ -570,8 +585,9 @@ int initialize() {
 		params.hashtable_size = unsignedIntPow(2, tmp_elev);
 	}
 
-	// Transfering hashtable size to parameter data in GPU
-	cudaMemcpy(&d_params.hashtable_size, &params.hashtable_size, sizeof(uint),cudaMemcpyHostToDevice);
+	// Transfering params to GPU
+	
+	gpuErrchk(cudaMemcpyToSymbol(&d_params, &params, sizeof(SimParams)))
 
 	int* hashtable = new int[params.hashtable_size * params.particles_per_row];
 
@@ -637,13 +653,13 @@ int initialize() {
 	int count = 0;
 	float min_r = std::numeric_limits<float>::infinity();
 	int selected_index;
-	int tmp_size = static_cast<int>(ceil((2 * (h + PARTICLE_DIAMETER)) / PARTICLE_DIAMETER));
+	int tmp_size = static_cast<int>(ceil((2 * (params.h + PARTICLE_DIAMETER)) / PARTICLE_DIAMETER));
 	float3* tmp_points = (float3*)malloc(tmp_size * tmp_size * tmp_size * 3 * sizeof(float));
 
 	// generating fake particle positions without any packing method (the same is done in [5])
-	for (float i = -h - PARTICLE_DIAMETER; i <= h + PARTICLE_DIAMETER; i += PARTICLE_DIAMETER) {
-		for (float j = -h - PARTICLE_DIAMETER; j <= h + PARTICLE_DIAMETER; j += PARTICLE_DIAMETER) {
-			for (float k = -h - PARTICLE_DIAMETER; k <= h + PARTICLE_DIAMETER; k += PARTICLE_DIAMETER) {
+	for (float i = -params.h - PARTICLE_DIAMETER; i <= params.h + PARTICLE_DIAMETER; i += PARTICLE_DIAMETER) {
+		for (float j = -params.h - PARTICLE_DIAMETER; j <= params.h + PARTICLE_DIAMETER; j += PARTICLE_DIAMETER) {
+			for (float k = -params.h - PARTICLE_DIAMETER; k <= params.h + PARTICLE_DIAMETER; k += PARTICLE_DIAMETER) {
 				tmp_points[count].x = i;
 				tmp_points[count].y = j;
 				tmp_points[count].z = k;
@@ -673,8 +689,8 @@ int initialize() {
 		r_vector.z = tmp_points[i].z - selected_point.z;
 		r = sqrt(r_vector.x* r_vector.x + r_vector.y* r_vector.y + r_vector.z* r_vector.z);
 
-		if (r <= h) {
-			float3 inst_Grad_W = Poly6_Gradient(selected_index, i, tmp_points, r, h, invh);
+		if (r <= params.h) {
+			float3 inst_Grad_W = Poly6_Gradient(selected_index, i, tmp_points, r, params.h, params.invh);
 
 			Grad_W.x += inst_Grad_W.x;
 			Grad_W.y += inst_Grad_W.y;
@@ -708,15 +724,15 @@ int initialize() {
 	free(FLUID_POSITIONS);
 
 	
-	gpuErrchk(cudaMalloc((void**)&params.d_POSITION, 3*params.T*sizeof(float)));
-	gpuErrchk(cudaMemcpy(params.d_POSITION, POSITION, 3*params.T*sizeof(float), cudaMemcpyHostToDevice));
+	gpuErrchk(cudaMalloc((void**)&d_POSITION, 3*params.T*sizeof(float)));
+	gpuErrchk(cudaMemcpy(d_POSITION, POSITION, 3*params.T*sizeof(float), cudaMemcpyHostToDevice));
 
 	//Allocating memory for predicted positions and copying previous position vectors
-	gpuErrchk(cudaMalloc((void**)&params.d_PRED_POSITION, 3 * params.T * sizeof(float)));
-	gpuErrchk(cudaMemcpy(params.d_PRED_POSITION, POSITION, 3 * params.T * sizeof(float), cudaMemcpyHostToDevice));
+	gpuErrchk(cudaMalloc((void**)&d_PRED_POSITION, 3 * params.T * sizeof(float)));
+	gpuErrchk(cudaMemcpy(d_PRED_POSITION, POSITION, 3 * params.T * sizeof(float), cudaMemcpyHostToDevice));
 
 	//Allocating memory for predicted velocity
-	gpuErrchk(cudaMalloc((void**)&params.d_PRED_VELOCITY, 3 * params.N * sizeof(float)));
+	gpuErrchk(cudaMalloc((void**)&d_PRED_VELOCITY, 3 * params.N * sizeof(float)));
 
 	//Defining and allocating main velocity variable
 	
@@ -866,7 +882,7 @@ int initialize() {
 	std::cout << params.N << " Fluid particles\n"
 		<< params.B << " Boundary particles\n"
 		<< "Total of " << params.T << " particles.\n"
-		<< "Smoothing radius = " << h << " m.\n"
+		<< "Smoothing radius = " << params.h << " m.\n"
 		<< "hashtable size = " << params.hashtable_size << "\n";
 
 	gpuErrchk(cudaPeekAtLastError()); // this is for checking if there was any error during the kernel execution
@@ -982,10 +998,10 @@ int mainLoop() {
 
 	// criterias for delta_t increase
 
-	bool criteria1 = 0.19f * sqrt(h / max_force) > delta_t;
+	bool criteria1 = 0.19f * sqrt(params.h / max_force) > delta_t;
 	bool criteria2 = max_rho_err < 4.5f * max_vol_comp;
 	bool criteria3 = avg_rho_err < 0.9f * max_vol_comp;
-	bool criteria4 = 0.39f * (h/max_velocity) > delta_t;
+	bool criteria4 = 0.39f * (params.h/max_velocity) > delta_t;
 
 	if (criteria1 && criteria2 && criteria3 && criteria4) {
 		delta_t += delta_t * 0.2f / 100;
@@ -993,10 +1009,10 @@ int mainLoop() {
 
 	// criterias for delta_t decrease
 
-	criteria1 = 0.2f * sqrt(h / max_force) < delta_t;
+	criteria1 = 0.2f * sqrt(params.h / max_force) < delta_t;
 	criteria2 = max_rho_err > 5.5f * max_vol_comp;
 	criteria3 = avg_rho_err > max_vol_comp;
-	criteria4 = 0.4f * (h / max_velocity) <= delta_t;
+	criteria4 = 0.4f * (params.h / max_velocity) <= delta_t;
 
 	if (criteria1 || criteria2 || criteria3 || criteria4) {
 		delta_t -= delta_t * 0.2f / 100;
@@ -1006,7 +1022,7 @@ int mainLoop() {
 
 	criteria1 = max_rho_err - max_rho_err_t_1 > 8 * max_vol_comp;
 	criteria2 = max_rho_err > max_rho_fluc;
-	criteria3 = 0.45f * (h/max_velocity) < delta_t;
+	criteria3 = 0.45f * (params.h/max_velocity) < delta_t;
 
 	if (criteria1 || criteria2 || criteria3) {
 
@@ -1030,7 +1046,7 @@ int mainLoop() {
 		write_pvd = false;
 		//SHOCK DETECTED
 
-		delta_t -= delta_t * 0.5;
+		delta_t -= delta_t * 0.5f;
 
 		iteration = last_iter;
 		if (iteration <= 0) {
@@ -1055,13 +1071,9 @@ int mainLoop() {
 		//edit PVD (group) file with the correct information
 		rewritePVD(main_path);
 
-		void* d_params_gpu_pptr;
-		cudaGetSymbolAddress(&d_params_gpu_pptr, &d_params);
-		SimParams* d_params_gpu_ptr = (SimParams*)d_params_gpu_pptr;
-		SimParams d_params_gpu = d_params_gpu_ptr[0];
 
-		gpuErrchk(cudaMemcpy(d_params_gpu.d_POSITION, position, 3 * params.N * sizeof(float), cudaMemcpyHostToDevice));
-		gpuErrchk(cudaMemcpy(d_params_gpu.d_VELOCITY, velocity, 3 * params.N * sizeof(float), cudaMemcpyHostToDevice));
+		gpuErrchk(cudaMemcpy(d_POSITION, position, 3 * params.N * sizeof(float), cudaMemcpyHostToDevice));
+		gpuErrchk(cudaMemcpy(d_VELOCITY, velocity, 3 * params.N * sizeof(float), cudaMemcpyHostToDevice));
 
 		gpuErrchk(cudaPeekAtLastError());
 		gpuErrchk(cudaDeviceSynchronize());
@@ -1111,8 +1123,8 @@ void multiprocessor_writer() {
 	SimParams* d_params_gpu_ptr = (SimParams*)d_params_gpu_pptr;
 	SimParams d_params_gpu = d_params_gpu_ptr[0];
 
-	gpuErrchk(cudaMemcpy(write_position, d_params_gpu.d_POSITION, params.N * sizeof(float3), cudaMemcpyDeviceToHost));
-	gpuErrchk(cudaMemcpy(write_velocity, d_params_gpu.d_VELOCITY, params.N * sizeof(float3), cudaMemcpyDeviceToHost));
+	gpuErrchk(cudaMemcpy(write_position, d_POSITION, params.N * sizeof(float3), cudaMemcpyDeviceToHost));
+	gpuErrchk(cudaMemcpy(write_velocity, d_VELOCITY, params.N * sizeof(float3), cudaMemcpyDeviceToHost));
 	gpuErrchk(cudaMemcpy(write_p_force, d_params_gpu.d_PRESSURE_FORCE, params.N * sizeof(float3), cudaMemcpyDeviceToHost));
 	gpuErrchk(cudaMemcpy(write_st_force, d_params_gpu.d_ST_FORCE, params.N * sizeof(float3), cudaMemcpyDeviceToHost));
 	gpuErrchk(cudaMemcpy(write_v_force, d_params_gpu.d_VISCOSITY_FORCE, params.N * sizeof(float3), cudaMemcpyDeviceToHost));
