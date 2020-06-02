@@ -74,16 +74,29 @@ __device__ void insertItem(float3 point, int point_id, int* hashtable)
     }
 }
 
-__global__ void hashParticlePositions(float3* position, uint size, int* hashtable) {
+__global__ void hashParticlePositions(float3* position, int* hashtable) {
 
     int index = getGlobalIdx_1D_1D();
 
-    if (index >= size) {
+    if (index >= d_params.T) {
         return;
     }
-    printf("%g\n", d_params.invh);
+
     insertItem(position[index], index, hashtable);
     
+    return;
+}
+
+__global__ void hashParticlePositionsBoundary(float3* position, int* hashtable) {
+
+    int index = getGlobalIdx_1D_1D();
+
+    if (index >= d_params.B) {
+        return;
+    }
+
+    insertItem(position[index], index, hashtable);
+
     return;
 }
 

@@ -421,9 +421,9 @@ __global__ void fluidNormal(float3 *position, float3 *normal,float* mass, float*
 	return;
 }
 
-// This kernel calculates the viscosity (according to [5]), surface tension and adhesion (according to [4]) forces.
+// This kernel calculates the viscosity_force (according to [5]), surface tension and adhesion (according to [4]) forces.
 // Note: The adhesion and surface tension forces are calculated in the same functions to conserve memory and lines of code
-__global__ void nonPressureForces(float3* position,float3* velocity, float3* viscosity, float3* st_force,float3* normal, float* mass, float* density, int* type, int* hashtable) {
+__global__ void nonPressureForces(float3* position,float3* velocity, float3* viscosity_force, float3* st_force,float3* normal, float* mass, float* density, int* type, int* hashtable) {
 
 	int index = getGlobalIdx_1D_1D();
 
@@ -431,7 +431,7 @@ __global__ void nonPressureForces(float3* position,float3* velocity, float3* vis
 		return;
 	}
 
-	assignToVec3d(&viscosity[index]);
+	assignToVec3d(&viscosity_force[index]);
 	assignToVec3d(&st_force[index]);
 
 	float3 BB;
@@ -468,9 +468,9 @@ __global__ void nonPressureForces(float3* position,float3* velocity, float3* vis
 								float3 visc = ViscosityForce(index, row[t], mass, density, velocity, type[row[t]], d_params.visc_const, d_params.rho_0, Viscosity_Laplacian(r, d_params.h, d_params.invh));
 
 								//summation of calcualted value to main array
-								viscosity[index].x += visc.x;
-								viscosity[index].y += visc.y;
-								viscosity[index].z += visc.z;
+								viscosity_force[index].x += visc.x;
+								viscosity_force[index].y += visc.y;
+								viscosity_force[index].z += visc.z;
 
 								//Surface tension calculation
 								float3 st = STForce(index, row[t], r, position, mass, density, normal, type[row[t]], d_params.st_const, d_params.rho_0, ST_Kernel(r, d_params.h, d_params.invh, type[row[t]]));
@@ -493,7 +493,7 @@ __global__ void nonPressureForces(float3* position,float3* velocity, float3* vis
 }
 
 // A kernel to calculate velocity and positions according to the applyed forces
-__global__ void positionAndVelocity(float3* position1,float3* velocity1, float3* position2, float3* velocity2,float3* pressure_force,float3* viscosity, float3* st_force, float* mass, float delta_t) {
+__global__ void positionAndVelocity(float3* position1,float3* velocity1, float3* position2, float3* velocity2,float3* pressure_force,float3* viscosity_force, float3* st_force, float* mass, float delta_t) {
 
 	// 1 -> Will be changed by this kernel
 	// 2 -> Wont be changed by this kernel
@@ -507,9 +507,9 @@ __global__ void positionAndVelocity(float3* position1,float3* velocity1, float3*
 	float tmp = delta_t / mass[index];
 
 	//calculating velocity
-	velocity1[index].x = velocity2[index].x + (pressure_force[index].x + viscosity[index].x + st_force[index].x + d_params.gravity.x * mass[index]) * (tmp);
-	velocity1[index].y = velocity2[index].y + (pressure_force[index].y + viscosity[index].y + st_force[index].y + d_params.gravity.y * mass[index]) * (tmp);
-	velocity1[index].z = velocity2[index].z + (pressure_force[index].z + viscosity[index].z + st_force[index].z + d_params.gravity.z * mass[index]) * (tmp);
+	velocity1[index].x = velocity2[index].x + (pressure_force[index].x + viscosity_force[index].x + st_force[index].x + d_params.gravity.x * mass[index]) * (tmp);
+	velocity1[index].y = velocity2[index].y + (pressure_force[index].y + viscosity_force[index].y + st_force[index].y + d_params.gravity.y * mass[index]) * (tmp);
+	velocity1[index].z = velocity2[index].z + (pressure_force[index].z + viscosity_force[index].z + st_force[index].z + d_params.gravity.z * mass[index]) * (tmp);
 
 	//calculating position
 	position1[index].x = position2[index].x + delta_t * velocity1[index].x;
@@ -584,10 +584,11 @@ __global__ void collisionHandler(float3* position,float3* velocity, float3* norm
 	//calculating new position
 	float inv_norm_normal = 1 / norm3df(n_c_i.x, n_c_i.y, n_c_i.z);
 	float inv_w = 1 / w_c_ib_sum;
+	float tmp = inv_norm_normal * w_c_ib_second_sum * inv_w;
 
-	position[index].x += n_c_i.x * inv_norm_normal * w_c_ib_second_sum * inv_w;
-	position[index].y += n_c_i.y * inv_norm_normal * w_c_ib_second_sum * inv_w;
-	position[index].z += n_c_i.z * inv_norm_normal * w_c_ib_second_sum * inv_w;
+	position[index].x += n_c_i.x * tmp;
+	position[index].y += n_c_i.y * tmp;
+	position[index].z += n_c_i.z * tmp;
 
 	//calculating new velocity
 	float dot = dot_product(velocity[index], normal[index]);
@@ -597,8 +598,8 @@ __global__ void collisionHandler(float3* position,float3* velocity, float3* norm
 	v_n.z = dot * n_c_i.z;
 
 	velocity[index].x = d_params.epsilon * (velocity[index].x - v_n.x);
-	velocity[index].y = d_params.epsilon * (velocity[index].x - v_n.y);
-	velocity[index].z = d_params.epsilon * (velocity[index].x - v_n.z);
+	velocity[index].y = d_params.epsilon * (velocity[index].y - v_n.y);
+	velocity[index].z = d_params.epsilon * (velocity[index].z - v_n.z);
 
 	return;
 }
@@ -658,7 +659,7 @@ __global__ void DensityCalc(float3* position, float* density, float* mass, int* 
 }
 
 // calculates pressure according to [1] and [2]
-__global__ void PressureCalc(float* pressure, float* density, float pressure_coeff) {
+__global__ void PressureCalc(float* pressure, float* density, float* pressure_coeff) {
 	
 	int index = getGlobalIdx_1D_1D();
 
@@ -666,7 +667,7 @@ __global__ void PressureCalc(float* pressure, float* density, float pressure_coe
 		return;
 	}
 
-	pressure[index] += (density[index] - d_params.rho_0) * pressure_coeff;
+	pressure[index] += (density[index] - d_params.rho_0) * *pressure_coeff;
 	
 
 	return;
@@ -729,7 +730,7 @@ __global__ void PressureForceCalc(float3* position, float3* pressure_force, floa
 }
 
 // This kernel gets maximum values of velocity, force and density error and calculates the sum of all density errors
-__global__ void getMaxVandF(float3* velocity,float3* pressure_force,float3* viscosity,float3* st_force,float* density, float* mass,float* max_force,float* max_velocity, float* sum_rho_error,float* max_rho_err) {
+__global__ void getMaxVandF(float3* velocity,float3* pressure_force,float3* viscosity_force,float3* st_force,float* density, float* mass,float* max_force,float* max_velocity, float* sum_rho_error,float* max_rho_err) {
 
 	int index = getGlobalIdx_1D_1D();
 
@@ -738,7 +739,7 @@ __global__ void getMaxVandF(float3* velocity,float3* pressure_force,float3* visc
 	}
 	
 	float max_p = maxValueInVec3D(pressure_force[index]);
-	float max_v = maxValueInVec3D(viscosity[index]);
+	float max_v = maxValueInVec3D(viscosity_force[index]);
 	float max_st = maxValueInVec3D(st_force[index]);
 
 	float3 g;
@@ -781,10 +782,10 @@ __global__ void hashtableReset(int* hashtable) {
 
 //resets the value of max_volocity, max_force, sum of density error and max density error
 __global__ void resetValues(float* max_velocity, float* max_force, float* sum_rho_err,float* max_rho_err) {
-	max_velocity[0] = 0.f;
-	max_force[0] = 0.f;
-	sum_rho_err[0] = 0.f;
-	max_rho_err[0] = 0.f;
+	*max_velocity = 0.f;
+	*max_force = 0.f;
+	*sum_rho_err = 0.f;
+	*max_rho_err = 0.f;
 	return;
 }
 
@@ -799,4 +800,9 @@ __global__ void resetPressure(float* pressure) {
 
 	pressure[index] = 0.f;
 	return;
+}
+
+// calculate the pressure coefficient as in Equation 8 of [1]
+__global__ void pressureCoeff(float *pressure_coeff, float delta_t) {
+	*pressure_coeff = -1 / (2 * powf(d_params.mass * delta_t / d_params.rho_0, 2) * d_params.pressure_delta);
 }

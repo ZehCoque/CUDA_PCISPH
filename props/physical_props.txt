@@ -2,6 +2,5 @@ start
 rho_0 = 1000; *fluid rest density
 visc_const = 0.0010518; *viscosity constant
 surface_tension_const = 0.0728; *surface tension constant
-collision_damping_coeff = 0.95; *Damping effect when fluid collides with boundaries
-fluid_sound_speed = 1500; *in meters per second
+collision_damping_coeff = 0.95; *damping effect when fluid collides with boundaries
 end

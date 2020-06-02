@@ -32,9 +32,14 @@ inline void gpuAssert(cudaError_t code, const char* file, int line, bool abort =
 // simulation parameters
 struct SimParams
 {
+	//PCISPH parameters
 	float h;
 	float invh;
+	float boundary_diameter;
+	float pressure_delta;
+	float mass;
 
+	//particle counter
 	uint N; //number of fluid particles
 	uint B; //number of bondary particles
 	uint T; //total number of particles
@@ -44,13 +49,11 @@ struct SimParams
 	uint particles_per_row; //this is the maximum number of neighbors a particle can have due to memory allocation
 	uint hashtable_size; //this is the size of the hashtable. Must be a power of 2.
 
-	float boundary_diameter;
-
 	//physical constants
 	float rho_0; //rest density
 	float visc_const; //viscosity constant
 	float st_const; // surface tension constant
-	float epsilon; // dumping coefficient for collision
+	float epsilon; // damping coefficient for collision
 
 	float3 gravity; //stores the pointer to the gravity data in the CPU
 
