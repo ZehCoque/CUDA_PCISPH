@@ -5,99 +5,126 @@
 #include "helper.cuh"
 #include "common.cuh"
 
-bool isPrime(int n)
-{
-    // Corner cases
-    if (n <= 1)  return false;
-    if (n <= 3)  return true;
+#include "thrust/device_ptr.h"
+#include "thrust/sort.h"
 
-    // This is checked so that we can skip
-    // middle five numbers in below loop
-    if (n%2 == 0 || n%3 == 0) return false;
+__device__ int3 calcGridPos(float3 point) {
 
-    for (int i=5; i*i<=n; i=i+6)
-        if (n%i == 0 || n%(i+2) == 0)
-           return false;
+    uint p1 = 73856093;
+    uint p2 = 19349669;
+    uint p3 = 83492791;
 
-    return true;
+    int3 gridPos;
+
+    gridPos.x = static_cast<unsigned int>(floor(point.x * d_params.invh)) * p1;
+    gridPos.y = static_cast<unsigned int>(floor(point.y * d_params.invh)) * p2;
+    gridPos.z = static_cast<unsigned int>(floor(point.z * d_params.invh)) * p3;
+
+    return gridPos;
 }
 
-// Function to return the smallest
-// prime number greater than N
-int nextPrime(int N)
-{
+__device__ uint calcGridHash(int3 gridPos) {
 
-    // Base case
-    if (N <= 1)
-        return 2;
+    
+    return ((gridPos.x ^ gridPos.y ^ gridPos.z) & (d_params.hashtable_size - 1));
 
-    int prime = N;
-    bool found = false;
-
-    // Loop continuously until isPrime returns
-    // true for a number greater than n
-    while (!found) {
-        prime++;
-
-        if (isPrime(prime))
-            found = true;
-    }
-
-    return prime;
 }
 
-__device__ int hashFunction(float3 point) {
+__global__ void hashParticlePositions(uint *gridParticleHash, uint * gridParticleIndex, float3 *position) {
 
-    int p1 = 73856093;
-    int p2 = 19349669;
-    int p3 = 83492791;
-
-    int r_x, r_y, r_z;
-
-    r_x = static_cast<int>(floor(point.x * d_params.invh)) * p1;
-    r_y = static_cast<int>(floor(point.y * d_params.invh)) * p2;
-    r_z = static_cast<int>(floor(point.z * d_params.invh)) * p3;
-
-    return ((r_x ^ r_y ^ r_z) & (d_params.hashtable_size - 1));
-}
-
-__device__ void insertItem(float3 point, int point_id, int* hashtable)
-{
-    int hash_index = hashFunction(point);
-
-    int* row_a = (int*)((char*)hashtable + hash_index * d_params.pitch);
-    for (int i = 0; i < d_params.particles_per_row; i++) {
-        atomicCAS(&row_a[i], -1, point_id);
-        if (row_a[i] == point_id) {
-            return;
-        }
-    }
-}
-
-__global__ void hashParticlePositions(float3* position, int* hashtable) {
-
-    int index = getGlobalIdx_1D_1D();
+    uint index = getGlobalIdx_1D_1D();
 
     if (index >= d_params.T) {
         return;
     }
 
-    insertItem(position[index], index, hashtable);
+    float3 p = position[index];
+
+    int3 gridPos = calcGridPos(p);
+    uint hash = calcGridHash(gridPos);
     
+    gridParticleHash[index] = hash;
+    gridParticleIndex[index] = index;
+
     return;
 }
 
-__global__ void hashParticlePositionsBoundary(float3* position, int* hashtable) {
+__global__ void hashParticlePositionsBoundary(uint* gridParticleHash, uint* gridParticleIndex, float3* position) {
 
-    int index = getGlobalIdx_1D_1D();
+    uint index = getGlobalIdx_1D_1D();
 
     if (index >= d_params.B) {
         return;
     }
 
-    insertItem(position[index], index, hashtable);
+    float3 p = position[index];
+
+    int3 gridPos = calcGridPos(p);
+    uint hash = calcGridHash(gridPos);
+
+    gridParticleHash[index] = hash;
+    gridParticleIndex[index] = index;
 
     return;
+}
+
+void sortParticles(uint* dGridParticleHash, uint* dGridParticleIndex, uint numParticles)
+{
+    thrust::sort_by_key(thrust::device_ptr<uint>(dGridParticleHash),
+        thrust::device_ptr<uint>(dGridParticleHash + numParticles),
+        thrust::device_ptr<uint>(dGridParticleIndex));
+}
+
+__global__ void sortAndGetCellStartEnd( uint* cellStart,        // output: cell start index
+                                        uint* cellEnd,          // output: cell end index
+                                        float4* sortedPos,        // output: sorted positions
+                                        float4* sortedVel,        // output: sorted velocities
+                                        uint* gridParticleHash, // input: sorted grid hashes
+                                        uint* gridParticleIndex,// input: sorted particle indices
+                                        float4* oldPos,           // input: sorted position array
+                                        float4* oldVel           // input: sorted velocity array
+                                        ) {
+
+    extern __shared__ uint sharedHash[];
+
+    uint index = getGlobalIdx_1D_1D();
+
+    if (index >= d_params.T) {
+        return;
+    }
+
+    uint hash = gridParticleHash[index];
+
+    sharedHash[threadIdx.x + 1] = hash;
+
+    if (index > 0 && threadIdx.x == 0) {
+
+        sharedHash[0] = gridParticleHash[index - 1];
+
+    }
+
+    __syncthreads;
+
+    if (index == 0 || hash != sharedHash[threadIdx.x])
+    {
+        cellStart[hash] = index;
+
+        if (index > 0)
+            cellEnd[sharedHash[threadIdx.x]] = index;
+    }
+
+    if (index == d_params.N - 1)
+    {
+        cellEnd[hash] = index + 1;
+    }
+
+    // Now use the sorted index to reorder the pos and vel data
+    uint sortedIndex = gridParticleIndex[index];
+    float4 pos = oldPos[sortedIndex];
+    float4 vel = oldVel[sortedIndex];
+
+    sortedPos[index] = pos;
+    sortedVel[index] = vel;
 }
 
 //int main(){

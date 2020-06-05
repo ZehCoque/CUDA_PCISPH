@@ -5,51 +5,55 @@
 #include "common.cuh"
 #include "helper.cuh"
 #include "forces.cuh"
+#include "helper_math.h"
+
+extern __shared__ float3 shared_array[]; //pointer to dynamically allocated shared memory
 
 // NOTES:
 // 1. All functions with __global__ in front of its declaration and/or definition are called CUDA kernels and run ONLY in the GPU.
 // 2. In this file, all functions marked with ** are mostly the same, only changing its core. The functions are basically searching for particle neighbors in the hashing table and performing the required calculation with the results. The function core is defined with the //CORE comment
 
 // This kernel calculates the boundary "fake" mass (psi) as defined by Equation 5 of [3]
-__global__ void boundaryPsi(float* psi, float3* position, int* hashtable) {
+__global__ void boundaryPsi(float* psi, float3* position,uint *cellStart, uint *cellEnd) {
 	
-	int index = getGlobalIdx_1D_1D();
+	uint index = getGlobalIdx_1D_1D();
 
 	if (index >= d_params.B) {
 		return;
 	}
 
-	psi[index] = 0.f;
-	int hash_list[27];
-	bool skip = false;
-	int count = 0;
+	float current_psi = 0.f;
+	float3 *sharedPos = shared_array;
+	int sharedMemIndex = threadIdx.x - blockIdx.x * blockDim.x;
+
+	sharedPos[sharedMemIndex] = position[index];
+
+	__syncthreads();
+
+	float3 current_position = sharedPos[sharedMemIndex];
+
+	int3 gridPos = calcGridPos(current_position);
+
 	for (int i = -1; i < 2; i++) {
 		for (int j = -1; j < 2; j++) {
 			for (int k = -1; k < 2; k++) {
-				float3 BB;
-				BB.x = position[index].x + i * d_params.h;
-				BB.y = position[index].y + j * d_params.h;
-				BB.z = position[index].z + k * d_params.h;
 
-				int hash_index = hashFunction(BB);
-				hash_list[count] = hash_index;
-				skip = false;
-				for (int t = 0; t < count; t++) {
-					if (hash_index == hash_list[t]) {
-						skip = true;
-					}
-				}
-				count = count + 1;
-				if (hash_index >= 0 && skip == false) {
-					int* row = (int*)((char*)hashtable + hash_index * d_params.pitch);
-					for (int t = 0; t < d_params.particles_per_row; t++) {
-						//CORE
-						if (row[t] != -1) {
-							
-							float r = distance(position[index], position[row[t]]);
-							if (r <= d_params.h) {
-								psi[index] += Poly6_Kernel(r, d_params.h, d_params.invh);
-							}
+				int3 neighbourGridPos = make_int3(gridPos.x + i, gridPos.y + j, gridPos.z + k);
+				uint gridHash = calcGridHash(neighbourGridPos);
+				uint startIndex = cellStart[gridHash];
+
+				if (startIndex != 0xffffffff) {
+					uint endIndex = cellEnd[gridHash];
+
+					for (uint cell_id = startIndex; cell_id < endIndex; cell_id++) {
+						
+						
+						sharedMemIndex = cell_id - blockIdx.x * blockDim.x;
+						float3 neighbor_position = sharedPos[sharedMemIndex];
+
+						float r = distance(current_position, neighbor_position);
+						if (r <= d_params.h) {
+							current_psi += Poly6_Kernel(&r);
 						}
 					}
 				}
@@ -57,7 +61,7 @@ __global__ void boundaryPsi(float* psi, float3* position, int* hashtable) {
 		}
 	}
 	
-	psi[index] = d_params.rho_0 / psi[index];
+	psi[index] = d_params.rho_0 / current_psi;
 	
 	return;
 
@@ -66,7 +70,7 @@ __global__ void boundaryPsi(float* psi, float3* position, int* hashtable) {
 // This kernel calculates the boundary Normal in a "hardcode" way. It is not a very good approach and it works only with the interior of boxes
 __global__ void boundaryNormal(float3* position, float3* normal, float3 b_initial, float3 b_final) {
 
-	int index = getGlobalIdx_1D_1D();
+	uint index = getGlobalIdx_1D_1D();
 
 	if (index >= d_params.B) {
 		return;
@@ -359,59 +363,73 @@ __global__ void boundaryNormal(float3* position, float3* normal, float3 b_initia
 }
 
 // This kernel calculates the fluid normal according to Equation between equations 2 and 3 of [4] (it does not have a number)
-__global__ void fluidNormal(float3 *position, float3 *normal,float* mass, float* density, int* type, int *hashtable) {
+__global__ void fluidNormal(float3 *position, float3 *normal,float* mass, float* density, int* type, uint* cellStart, uint* cellEnd) {
 
-	int index = getGlobalIdx_1D_1D();
+	uint index = getGlobalIdx_1D_1D();
 
 	if (index >= d_params.N) {
 		return;
 	}
 
-	assignToVec3d(&normal[index]);
+	float3 current_normal = make_float3(0.f,0.f,0.f);
 
-	int hash_list[27];
-	bool skip = false;
-	int count = 0;
+	float3* sharedPos = shared_array;
+	float* sharedDensity = (float*)&sharedPos[d_params.block_size];
+	float* sharedMass = &sharedDensity[d_params.block_size];
+	int* sharedType = (int*)&sharedMass[d_params.block_size];
+
+	int sharedMemIndex = threadIdx.x - blockIdx.x * blockDim.x;
+
+	sharedPos[sharedMemIndex] = position[index];
+	sharedDensity[sharedMemIndex] = density[index];
+	sharedMass[sharedMemIndex] = mass[index];
+	sharedType[sharedMemIndex] = type[index];
+
+	__syncthreads();
+
+	float3 current_position = sharedPos[sharedMemIndex];
+	float current_density = sharedDensity[sharedMemIndex];
+	float current_mass = sharedMass[sharedMemIndex];
+	
+	int3 gridPos = calcGridPos(current_position);
+
 	for (int i = -1; i < 2; i++) {
 		for (int j = -1; j < 2; j++) {
 			for (int k = -1; k < 2; k++) {
-				float3 BB;
-				BB.x = position[index].x + i * d_params.h;
-				BB.y = position[index].y + j * d_params.h;
-				BB.z = position[index].z + k * d_params.h;
 
-				int hash_index = hashFunction(BB);
-				hash_list[count] = hash_index;
-				skip = false;
-				for (int t = 0; t < count; t++) {
-					if (hash_index == hash_list[t]) {
-						skip = true;
-					}
-				}
-				count = count + 1;
-				if (hash_index >= 0 && skip == false) {
-					int* row = (int*)((char*)hashtable + hash_index * d_params.pitch);
-					for (int t = 0; t < d_params.particles_per_row; t++) {
-	
-						if (row[t] != -1) {
+				int3 neighbourGridPos = make_int3(gridPos.x + i, gridPos.y + j, gridPos.z + k);
+				uint gridHash = calcGridHash(neighbourGridPos);
+				uint startIndex = cellStart[gridHash];
 
-							float r = distance(position[index], position[row[t]]);
-							if (r <= d_params.h && r > 0) {
+				if (startIndex != 0xffffffff) {
+					uint endIndex = cellEnd[gridHash];
 
-								float3 poly6_gradient = Poly6_Gradient(index, row[t], position, r, d_params.h, d_params.invh);
-								float tmp;
-								if (type[row[t]] == 0) {
-									tmp = d_params.h * mass[row[t]] / density[row[t]];
-								}
-								else if (type[row[t]] == 1) {
-									tmp = d_params.h * mass[row[t]] / d_params.rho_0;
-								}
+					for (uint cell_id = startIndex; cell_id < endIndex; cell_id++) {
 
-								normal[index].x += tmp * poly6_gradient.x;
-								normal[index].y += tmp * poly6_gradient.y;
-								normal[index].z += tmp * poly6_gradient.z;
+						sharedMemIndex = cell_id - blockIdx.x * blockDim.x;
+
+						float3 neighbor_position = sharedPos[sharedMemIndex];
+
+						float r = distance(current_position, neighbor_position);
+						if (r <= d_params.h && r > 0) {
+
+							float3 poly6_gradient = Poly6_Gradient(&current_position, &neighbor_position, &r);
+
+							float neigbor_density = sharedDensity[sharedMemIndex];
+							float neighbor_mass = sharedMass[sharedMemIndex];
+							int neighbor_type = sharedType[sharedMemIndex];
+
+							float tmp;
+							if (neighbor_type == 0) {
+								tmp = d_params.h * neighbor_mass / neigbor_density;
 							}
+							else if (neighbor_type == 1) {
+								tmp = d_params.h * neighbor_mass / d_params.rho_0;
+							}
+
+							current_normal = make_float3(tmp * poly6_gradient.x, tmp * poly6_gradient.y, tmp * poly6_gradient.z);
 						}
+							
 					}
 				}
 			}
@@ -419,153 +437,188 @@ __global__ void fluidNormal(float3 *position, float3 *normal,float* mass, float*
 	}
 
 	return;
+
 }
 
 // This kernel calculates the viscosity_force (according to [5]), surface tension and adhesion (according to [4]) forces.
 // Note: The adhesion and surface tension forces are calculated in the same functions to conserve memory and lines of code
-__global__ void nonPressureForces(float3* position,float3* velocity, float3* viscosity_force, float3* st_force,float3* normal, float* mass, float* density, int* type, int* hashtable) {
+__global__ void nonPressureForces(float3* position,float3* velocity, float3* viscosity_force, float3* st_force,float3* normal, float* mass, float* density, int* type, uint * cellStart, uint * cellEnd) {
 
-	int index = getGlobalIdx_1D_1D();
+	uint index = getGlobalIdx_1D_1D();
 
 	if (index >= d_params.N) {
 		return;
 	}
 
-	assignToVec3d(&viscosity_force[index]);
-	assignToVec3d(&st_force[index]);
+	float3 current_viscosity_force = make_float3(0.f, 0.f, 0.f);
+	float3 current_st_force = make_float3(0.f, 0.f, 0.f);
 
-	float3 BB;
-	int hash_list[27];
-	bool skip = false;
-	int count = 0;
+	float3* sharedPos = shared_array;
+	float* sharedDensity = (float*)&sharedPos[d_params.block_size];
+	float* sharedMass = &sharedDensity[d_params.block_size];
+	int* sharedType = (int*)&sharedMass[d_params.block_size];
+	float3* sharedVel = (float3*)&sharedType[d_params.block_size];
+	float3* sharedNormal = &sharedVel[d_params.block_size];
+
+	int sharedMemIndex = threadIdx.x - blockIdx.x * blockDim.x;
+
+	sharedPos[sharedMemIndex] = position[index];
+	sharedVel[sharedMemIndex] = velocity[index];
+	sharedDensity[sharedMemIndex] = density[index];
+	sharedMass[sharedMemIndex] = mass[index];
+	sharedNormal[sharedMemIndex] = normal[index];
+	sharedType[sharedMemIndex] = type[index];
+
+	__syncthreads();
+
+	float3 current_position = sharedPos[sharedMemIndex];
+	float3 current_velocity = sharedVel[sharedMemIndex];
+	float3 current_normal = sharedNormal[sharedMemIndex];
+	float current_density = sharedDensity[sharedMemIndex];
+	float current_mass = sharedMass[sharedMemIndex];
+
+	int3 gridPos = calcGridPos(current_position);
+
 	for (int i = -1; i < 2; i++) {
 		for (int j = -1; j < 2; j++) {
 			for (int k = -1; k < 2; k++) {
-				
-				BB.x = position[index].x + i * d_params.h;
-				BB.y = position[index].y + j * d_params.h;
-				BB.z = position[index].z + k * d_params.h;
 
-				int hash_index = hashFunction(BB);
-				hash_list[count] = hash_index;
-				skip = false;
-				for (int t = 0; t < count; t++) {
-					if (hash_index == hash_list[t]) {
-						skip = true;
-					}
-				}
-				count = count + 1;
-				if (hash_index >= 0 && skip == false) {
-					int* row = (int*)((char*)hashtable + hash_index * d_params.pitch);
-					for (int t = 0; t < d_params.particles_per_row; t++) {
-						//CORE
-						if (row[t] != -1) {
-							float r = distance(position[index], position[row[t]]);
-							if (r <= d_params.h && r > 0) {
+				int3 neighbourGridPos = make_int3(gridPos.x + i, gridPos.y + j, gridPos.z + k);
+				uint gridHash = calcGridHash(neighbourGridPos);
+				uint startIndex = cellStart[gridHash];
 
-								//Viscosity calculation
+				if (startIndex != 0xffffffff) {
+					uint endIndex = cellEnd[gridHash];
 
-								float3 visc = ViscosityForce(index, row[t], mass, density, velocity, type[row[t]], d_params.visc_const, d_params.rho_0, Viscosity_Laplacian(r, d_params.h, d_params.invh));
+					for (uint cell_id = startIndex; cell_id < endIndex; cell_id++) {
 
-								//summation of calcualted value to main array
-								viscosity_force[index].x += visc.x;
-								viscosity_force[index].y += visc.y;
-								viscosity_force[index].z += visc.z;
+						sharedMemIndex = cell_id - blockIdx.x * blockDim.x;
 
-								//Surface tension calculation
-								float3 st = STForce(index, row[t], r, position, mass, density, normal, type[row[t]], d_params.st_const, d_params.rho_0, ST_Kernel(r, d_params.h, d_params.invh, type[row[t]]));
+						float3 neighbor_position = sharedPos[sharedMemIndex];
 
-								//summation of calculated value to main array
-								st_force[index].x += st.x;
-								st_force[index].y += st.y;
-								st_force[index].z += st.z;
+						float r = distance(current_position, neighbor_position);
+						if (r <= d_params.h && r > 0) {
 
-								
-							}
+							float neighbor_mass = sharedMass[sharedMemIndex];
+							float neighbor_density = sharedDensity[sharedMemIndex];
+							float3 neighbor_velocity = sharedVel[sharedMemIndex];
+							float3 neighbor_normal = sharedNormal[sharedMemIndex];
+							int neighbor_type = sharedType[sharedMemIndex];
+
+							float3 visc = ViscosityForce(&current_mass, &neighbor_mass, &current_density, &neighbor_density, &current_velocity, &neighbor_velocity, &neighbor_type, Viscosity_Laplacian(&r));
+
+							//summation of calcualted value to main array
+							current_viscosity_force += visc;
+
+							//Surface tension calculation
+							float3 st = STForce(&current_position,&neighbor_position, &current_mass, &neighbor_mass, &current_density, &neighbor_density,&current_normal,&neighbor_normal, &neighbor_type,&r, ST_Kernel(&r,&neighbor_type));
+
+							//summation of calculated value to main array
+							current_st_force += st;
 						}
 					}
 				}
 			}
 		}
 	}
-	
-	return;
+
+	viscosity_force[index] = current_viscosity_force;
+	st_force[index] = current_st_force;
+
 }
 
 // A kernel to calculate velocity and positions according to the applyed forces
-__global__ void positionAndVelocity(float3* position1,float3* velocity1, float3* position2, float3* velocity2,float3* pressure_force,float3* viscosity_force, float3* st_force, float* mass, float delta_t) {
+__global__ void positionAndVelocity(float3* position1,float3* velocity1, float3* position2, float3* velocity2,float3* pressure_force,float3* viscosity_force, float3* st_force, float* mass, float *delta_t) {
 
 	// 1 -> Will be changed by this kernel
 	// 2 -> Wont be changed by this kernel
 
-	int index = getGlobalIdx_1D_1D();
+	uint index = getGlobalIdx_1D_1D();
 
 	if (index >= d_params.N) {
 		return;
 	}
 
-	float tmp = delta_t / mass[index];
+	float tmp = *delta_t / mass[index];
+
+	float3 tmp_velocity;
 
 	//calculating velocity
-	velocity1[index].x = velocity2[index].x + (pressure_force[index].x + viscosity_force[index].x + st_force[index].x + d_params.gravity.x * mass[index]) * (tmp);
-	velocity1[index].y = velocity2[index].y + (pressure_force[index].y + viscosity_force[index].y + st_force[index].y + d_params.gravity.y * mass[index]) * (tmp);
-	velocity1[index].z = velocity2[index].z + (pressure_force[index].z + viscosity_force[index].z + st_force[index].z + d_params.gravity.z * mass[index]) * (tmp);
+
+
+	tmp_velocity = velocity2[index] + (pressure_force[index] + viscosity_force[index] + st_force[index] + d_params.gravity * mass[index]) * tmp;
+	velocity1[index] = tmp_velocity;
 
 	//calculating position
-	position1[index].x = position2[index].x + delta_t * velocity1[index].x;
-	position1[index].y = position2[index].y + delta_t * velocity1[index].y;
-	position1[index].z = position2[index].z + delta_t * velocity1[index].z;
+
+	position1[index] = position2[index] + *delta_t * tmp_velocity;
 
 	return;
 }
 
 // A collision handler according to [2]
-__global__ void collisionHandler(float3* position,float3* velocity, float3* normal, int* type, int* hashtable) {
+__global__ void collisionHandler(float3* position,float3* velocity, float3* normal, int* type, uint* cellStart, uint* cellEnd) {
 
-	int index = getGlobalIdx_1D_1D();
+	uint index = getGlobalIdx_1D_1D();
 
 	if (index >= d_params.N) {
 		return;
 	}
 
-	float3 n_c_i;
-	assignToVec3d(&n_c_i);
-	float w_c_ib_sum = 0.f;
-	float w_c_ib_second_sum = 0.f;
+	float3 current_viscosity_force = make_float3(0.f, 0.f, 0.f);
+	float3 current_st_force = make_float3(0.f, 0.f, 0.f);
 
-	float3 BB;
-	int count = 0;
-	bool skip = false;
-	int hash_list[27];
+	float3* sharedPos = shared_array;
+	int* sharedType = (int*)&sharedType[d_params.block_size];
+	float3* sharedVel = (float3*)&sharedType[d_params.block_size];
+	float3* sharedNormal = &sharedVel[d_params.block_size];
+
+	int sharedMemIndex = threadIdx.x - blockIdx.x * blockDim.x;
+
+	sharedPos[sharedMemIndex] = position[index];
+	sharedVel[sharedMemIndex] = velocity[index];
+	sharedNormal[sharedMemIndex] = normal[index];
+	sharedType[sharedMemIndex] = type[index];
+
+	__syncthreads();
+
+	float3 current_position = sharedPos[sharedMemIndex];
+	float3 current_velocity = sharedVel[sharedMemIndex];
+	float3 current_normal = sharedNormal[sharedMemIndex];
+
+	int3 gridPos = calcGridPos(current_position);
+
+	float3 n_c_i;
+	float w_c_ib_sum;
+	float w_c_ib_second_sum;
+
 	for (int i = -1; i < 2; i++) {
 		for (int j = -1; j < 2; j++) {
 			for (int k = -1; k < 2; k++) {
 
-				BB.x = position[index].x + i * d_params.h;
-				BB.y = position[index].y + j * d_params.h;
-				BB.z = position[index].z + k * d_params.h;
+				int3 neighbourGridPos = make_int3(gridPos.x + i, gridPos.y + j, gridPos.z + k);
+				uint gridHash = calcGridHash(neighbourGridPos);
+				uint startIndex = cellStart[gridHash];
 
-				int hash_index = hashFunction(BB);
-				hash_list[count] = hash_index;
-				skip = false;
-				for (int t = 0; t < count; t++) {
-					if (hash_index == hash_list[t]) {
-						skip = true;
-					}
-				}
-				count = count + 1;
-				if (hash_index >= 0 && skip == false) {
-					int* row = (int*)((char*)hashtable + hash_index * d_params.pitch);
-					for (int t = 0; t < d_params.particles_per_row; t++) {
-						//CORE
-						if (row[t] != -1 && type[row[t]] == 1) {
-							float r = distance(position[index], position[row[t]]);
-							float w_c_ib = fmaxf((d_params.boundary_diameter - r) / d_params.boundary_diameter,0.f);
-							float3 n_b = normal[row[t]];
-							
-							n_c_i.x += n_b.x * w_c_ib;
-							n_c_i.y += n_b.y * w_c_ib;
-							n_c_i.z += n_b.z * w_c_ib;
+				if (startIndex != 0xffffffff) {
+					uint endIndex = cellEnd[gridHash];
+
+					for (uint cell_id = startIndex; cell_id < endIndex; cell_id++) {
+
+						sharedMemIndex = cell_id - blockIdx.x * blockDim.x;
+
+						float3 neighbor_position = sharedPos[sharedMemIndex];
+
+						float r = distance(current_position, neighbor_position);
+						if (r <= d_params.h && r > 0) {
+
+							float3 neighbor_normal = sharedNormal[sharedMemIndex];
+
+							float r = distance(current_position, neighbor_position);
+							float w_c_ib = fmaxf((d_params.boundary_diameter - r) / d_params.boundary_diameter, 0.f);
+							float3 n_b = neighbor_normal;
+
+							n_c_i += n_b * w_c_ib;
 
 							w_c_ib_sum += w_c_ib;
 							w_c_ib_second_sum += w_c_ib * (d_params.boundary_diameter - r);
@@ -575,7 +628,7 @@ __global__ void collisionHandler(float3* position,float3* velocity, float3* norm
 			}
 		}
 	}
-	
+
 	if (w_c_ib_sum == 0) {
 		return;
 	}
@@ -586,139 +639,172 @@ __global__ void collisionHandler(float3* position,float3* velocity, float3* norm
 	float inv_w = 1 / w_c_ib_sum;
 	float tmp = inv_norm_normal * w_c_ib_second_sum * inv_w;
 
-	position[index].x += n_c_i.x * tmp;
-	position[index].y += n_c_i.y * tmp;
-	position[index].z += n_c_i.z * tmp;
+	position[index] += n_c_i * tmp;
 
 	//calculating new velocity
-	float dot = dot_product(velocity[index], normal[index]);
+	float dot = dot_product(current_velocity, current_normal);
 	float3 v_n;
-	v_n.x = dot * n_c_i.x;
-	v_n.y = dot * n_c_i.y;
-	v_n.z = dot * n_c_i.z;
+	v_n = dot * n_c_i;
 
-	velocity[index].x = d_params.epsilon * (velocity[index].x - v_n.x);
-	velocity[index].y = d_params.epsilon * (velocity[index].y - v_n.y);
-	velocity[index].z = d_params.epsilon * (velocity[index].z - v_n.z);
+	velocity[index] = d_params.epsilon * (current_velocity - v_n);
 
 	return;
 }
 
 // A kernel to compute density according to all references
-__global__ void DensityCalc(float3* position, float* density, float* mass, int* hashtable) {
+__global__ void DensityCalc(float3* position, float* density, float* mass, uint* cellStart, uint* cellEnd) {
 
-	int index = getGlobalIdx_1D_1D();
+	uint index = getGlobalIdx_1D_1D();
 
 	if (index >= d_params.N) {
 		return;
 	}
 
-	density[index] = 0.f;
-	
-	float3 BB;
-	int hash_list[27];
-	bool skip = false;
-	int count = 0;
+	float current_density = 0.f;
+	float3* sharedPos = shared_array;
+	float* sharedMass = (float*)&sharedPos[d_params.block_size];
+
+	int sharedMemIndex = threadIdx.x - blockIdx.x * blockDim.x;
+
+	sharedPos[sharedMemIndex] = position[index];
+	sharedMass[sharedMemIndex] = mass[index];
+
+	__syncthreads();
+
+	float3 current_position = sharedPos[sharedMemIndex];
+
+	int3 gridPos = calcGridPos(current_position);
+
 	for (int i = -1; i < 2; i++) {
 		for (int j = -1; j < 2; j++) {
 			for (int k = -1; k < 2; k++) {
 
-				BB.x = position[index].x + i * d_params.h;
-				BB.y = position[index].y + j * d_params.h;
-				BB.z = position[index].z + k * d_params.h;
+				int3 neighbourGridPos = make_int3(gridPos.x + i, gridPos.y + j, gridPos.z + k);
+				uint gridHash = calcGridHash(neighbourGridPos);
+				uint startIndex = cellStart[gridHash];
 
-				int hash_index = hashFunction(BB);
-				hash_list[count] = hash_index;
-				skip = false;
-				for (int t = 0; t < count; t++) {
-					if (hash_index == hash_list[t]) {
-						skip = true;
-					}
-				}
-				count = count + 1;
-				if (hash_index >= 0 && skip == false) {
-					int* row = (int*)((char*)hashtable + hash_index * d_params.pitch);
-					for (int t = 0; t < d_params.particles_per_row; t++) {
+				if (startIndex != 0xffffffff) {
+					uint endIndex = cellEnd[gridHash];
 
-						//CORE
+					for (uint cell_id = startIndex; cell_id < endIndex; cell_id++) {
 
-						if (row[t] != -1) {
-							float r = distance(position[index], position[row[t]]);
-							if (r <= d_params.h) {
-								density[index] += mass[row[t]] * Poly6_Kernel(r, d_params.h, d_params.invh);
-								
-							}
+
+						sharedMemIndex = cell_id - blockIdx.x * blockDim.x;
+						float3 neighbor_position = sharedPos[sharedMemIndex];
+
+						float r = distance(current_position, neighbor_position);
+						if (r <= d_params.h) {
+
+							float neighbor_mass = sharedMass[sharedMemIndex];
+
+							current_density += neighbor_mass * Poly6_Kernel(&r);
+							
 						}
 					}
 				}
 			}
 		}
 	}
+	
+	density[index] = current_density;
 
 	return;
 }
 
 // calculates pressure according to [1] and [2]
-__global__ void PressureCalc(float* pressure, float* density, float* pressure_coeff) {
+__global__ void PressureCalc(float* pressure, float* density, float *delta_t) {
 	
-	int index = getGlobalIdx_1D_1D();
+	__shared__ float pressure_coeff; 
 
-	if (index >= d_params.N || (density[index] - d_params.rho_0) <= 0) {
+	if (threadIdx.x == 0) {
+		// calculates the pressure coefficient as in Equation 8 of [1] only once per thread block and stores it in shared memory
+		pressure_coeff = -1 / (2 * powf(d_params.mass * *delta_t / d_params.rho_0, 2) * d_params.pressure_delta);
+	}
+
+	uint index = getGlobalIdx_1D_1D();
+
+	if (index >= d_params.N) {
 		return;
 	}
 
-	pressure[index] += (density[index] - d_params.rho_0) * *pressure_coeff;
+	float current_density_diff = density[index] - d_params.rho_0;
+
+	if (current_density_diff <= 0) {
+		return;
+	}
+
+	__syncthreads();
+
+	pressure[index] += current_density_diff * pressure_coeff;
 	
 
 	return;
 }
 
 // Calculates pressure force according to [1] and [2]
-__global__ void PressureForceCalc(float3* position, float3* pressure_force, float* density, float* pressure, float* mass, int* type, int* hashtable) {
+__global__ void PressureForceCalc(float3* position, float3* pressure_force, float* density, float* pressure, float* mass, int* type, uint* cellStart, uint* cellEnd) {
 
-	int index = getGlobalIdx_1D_1D();
+	uint index = getGlobalIdx_1D_1D();
 
 	if (index >= d_params.N) {
 		return;
 	}
 
-	//reseting float3 value to 0
-	assignToVec3d(&pressure_force[index]);
+	float3 current_pressure_force = make_float3(0.f,0.f,0.f);
 
-	float3 BB;
-	int hash_list[27];
-	bool skip = false;
-	int count = 0;
+	float3* sharedPos = shared_array;
+	int* sharedType = (int*)&sharedType[d_params.block_size];
+	float* sharedDensity = (float*)&sharedType[d_params.block_size];
+	float* sharedPressure = &sharedDensity[d_params.block_size];
+	float* sharedMass = &sharedPressure[d_params.block_size];
+
+	int sharedMemIndex = threadIdx.x - blockIdx.x * blockDim.x;
+
+	sharedPos[sharedMemIndex] = position[index];
+	sharedType[sharedMemIndex] = type[index];
+	sharedDensity[sharedMemIndex] = density[index];
+	sharedPressure[sharedMemIndex] = pressure[index];
+	sharedMass[sharedMemIndex] = mass[index];
+
+	__syncthreads();
+
+	float3 current_position = sharedPos[sharedMemIndex];
+	float current_density = sharedDensity[sharedMemIndex];
+	float current_pressure = sharedPressure[sharedMemIndex];
+	float current_mass = sharedMass[sharedMemIndex];
+
+	int3 gridPos = calcGridPos(current_position);
+
+	float3 n_c_i;
+	float w_c_ib_sum;
+	float w_c_ib_second_sum;
+
 	for (int i = -1; i < 2; i++) {
 		for (int j = -1; j < 2; j++) {
 			for (int k = -1; k < 2; k++) {
 
-				BB.x = position[index].x + i * d_params.h;
-				BB.y = position[index].y + j * d_params.h;
-				BB.z = position[index].z + k * d_params.h;
+				int3 neighbourGridPos = make_int3(gridPos.x + i, gridPos.y + j, gridPos.z + k);
+				uint gridHash = calcGridHash(neighbourGridPos);
+				uint startIndex = cellStart[gridHash];
 
-				int hash_index = hashFunction(BB);
-				hash_list[count] = hash_index;
-				skip = false;
-				for (int t = 0; t < count; t++) {
-					if (hash_index == hash_list[t]) {
-						skip = true;
-					}
-				}
-				count = count + 1;
-				if (hash_index >= 0 && skip == false) {
-					int* row = (int*)((char*)hashtable + hash_index * d_params.pitch);
-					for (int t = 0; t < d_params.particles_per_row; t++) {
-						if (row[t] != -1) {
+				if (startIndex != 0xffffffff) {
+					uint endIndex = cellEnd[gridHash];
 
-							float r = distance(position[index], position[row[t]]);
-							if (r <= d_params.h && r > 0) {
+					for (uint cell_id = startIndex; cell_id < endIndex; cell_id++) {
 
-								float3 spiky_grad = Spiky_Gradient(index, row[t], position, r, d_params.h, d_params.invh);
-								float3 p = PressureForce(index, row[t], pressure, mass, density, type[row[t]], spiky_grad);
-								sum2Vec3d(&pressure_force[index], &p);
+						sharedMemIndex = cell_id - blockIdx.x * blockDim.x;
 
-							}
+						float3 neighbor_position = sharedPos[sharedMemIndex];
+
+						float r = distance(current_position, neighbor_position);
+						if (r <= d_params.h && r > 0) {
+
+							float neighbor_pressure = sharedPressure[sharedMemIndex];
+							float neighbor_mass = sharedMass[sharedMemIndex];
+							float neighbor_density = sharedDensity[sharedMemIndex];
+							int neighbor_type = sharedType[sharedMemIndex];
+
+							current_pressure_force = PressureForce(&current_pressure,&neighbor_pressure,&current_mass,&neighbor_mass,&current_density,&neighbor_density,&neighbor_type, Spiky_Gradient(&current_position, &neighbor_position, &r));
 						}
 					}
 				}
@@ -726,26 +812,27 @@ __global__ void PressureForceCalc(float3* position, float3* pressure_force, floa
 		}
 	}
 
+	pressure_force[index] = current_pressure_force;
+
 	return;
 }
 
 // This kernel gets maximum values of velocity, force and density error and calculates the sum of all density errors
-__global__ void getMaxVandF(float3* velocity,float3* pressure_force,float3* viscosity_force,float3* st_force,float* density, float* mass,float* max_force,float* max_velocity, float* sum_rho_error,float* max_rho_err) {
+__global__ void getMaxVandF(float3* velocity,float3* pressure_force,float3* viscosity_force,float3* st_force,float* density, float* mass,float* max_force,float* max_velocity, float* sum_rho_error, float* max_rho_err) {
 
-	int index = getGlobalIdx_1D_1D();
+	uint index = getGlobalIdx_1D_1D();
 
 	if (index >= d_params.N) {
 		return;
 	}
+
+	float tmp_mass = mass[index];
 	
 	float max_p = maxValueInVec3D(pressure_force[index]);
 	float max_v = maxValueInVec3D(viscosity_force[index]);
 	float max_st = maxValueInVec3D(st_force[index]);
 
-	float3 g;
-	g.x = d_params.gravity.x * mass[index];
-	g.y = d_params.gravity.y * mass[index];
-	g.z = d_params.gravity.z * mass[index];
+	float3 g = d_params.gravity * tmp_mass;
 
 	float max_g = maxValueInVec3D(g);
 
@@ -762,47 +849,62 @@ __global__ void getMaxVandF(float3* velocity,float3* pressure_force,float3* visc
 	return;
 }
 
-//resets the hashtable to a clean state (full of -1)
-__global__ void hashtableReset(int* hashtable) {
+__global__ void deltaTCriteria(float* max_force,float* max_velocity, float* max_rho_err, float* sum_rho_err, float* delta_t, float* max_rho_err_t_1, float3* d_POSITION_0, float3* d_POSITION_1, float3* d_POSITION_2, float3* d_VELOCITY_0, float3* d_VELOCITY_1, float3* d_VELOCITY_2) {
 
-	int index = getGlobalIdx_1D_1D();
+	bool criteria1;
+	bool criteria2;
+	bool criteria3;
+	bool criteria4;
 
-	if (index >= d_params.hashtable_size) {
-		return;
+	if (getGlobalIdx_1D_1D() == 0) {
+		// criterias for delta_t increase
+		criteria1 = 0.19f * sqrt(d_params.h / *max_force) > *delta_t;
+		criteria2 = *max_rho_err < 4.5f * d_params.max_vol_comp;
+		criteria3 = *sum_rho_err/d_params.N < 0.9f * d_params.max_vol_comp;
+		criteria4 = 0.39f * (d_params.h / *max_velocity) > *delta_t;
+
+		if (criteria1 && criteria2 && criteria3 && criteria4) {
+			*delta_t += *delta_t * 0.2f / 100.f;
+
+			cudaMemcpyAsync(d_POSITION_2, d_POSITION_1, d_params.N * sizeof(float3), cudaMemcpyDeviceToDevice);
+			cudaMemcpyAsync(d_POSITION_1, d_POSITION_0, d_params.N * sizeof(float3), cudaMemcpyDeviceToDevice);
+			cudaMemcpyAsync(d_VELOCITY_2, d_VELOCITY_1, d_params.N * sizeof(float3), cudaMemcpyDeviceToDevice);
+			cudaMemcpyAsync(d_VELOCITY_1, d_VELOCITY_0, d_params.N * sizeof(float3), cudaMemcpyDeviceToDevice);
+
+		}
 	}
+	else if (getGlobalIdx_1D_1D() == 1) {
+		// criterias for delta_t decrease
 
-	int* row = (int*)((char*)hashtable + index * d_params.pitch);
-	for (int t = 0; t < d_params.particles_per_row; t++) {
-		row[t] = -1;
+		criteria1 = 0.2f * sqrt(d_params.h / *max_force) < *delta_t;
+		criteria2 = *max_rho_err > 5.5f * d_params.max_vol_comp;
+		criteria3 = *sum_rho_err / d_params.N > d_params.max_vol_comp;
+		criteria4 = 0.4f * (d_params.h / *max_velocity) <= *delta_t;
+
+		if (criteria1 || criteria2 || criteria3 || criteria4) {
+			*delta_t -= *delta_t * 0.2f / 100.f;
+
+			cudaMemcpyAsync(d_POSITION_2, d_POSITION_1, d_params.N * sizeof(float3), cudaMemcpyDeviceToDevice);
+			cudaMemcpyAsync(d_POSITION_1, d_POSITION_0, d_params.N * sizeof(float3), cudaMemcpyDeviceToDevice);
+			cudaMemcpyAsync(d_VELOCITY_2, d_VELOCITY_1, d_params.N * sizeof(float3), cudaMemcpyDeviceToDevice);
+			cudaMemcpyAsync(d_VELOCITY_1, d_VELOCITY_0, d_params.N * sizeof(float3), cudaMemcpyDeviceToDevice);
+		}
+	}
+	else if (getGlobalIdx_1D_1D() == 2) {
+		// criterias for shock detection
+
+		criteria1 = *max_rho_err - *max_rho_err_t_1 > 8 * d_params.max_vol_comp;
+		criteria2 = *max_rho_err > d_params.max_rho_fluc;
+		criteria3 = 0.45f * (d_params.h / *max_velocity) < *delta_t;
+
+		if (criteria1 || criteria2 || criteria3) {
+			*delta_t *= 0.5f;
+
+			cudaMemcpyAsync(d_POSITION_0, d_POSITION_2, d_params.N * sizeof(float3), cudaMemcpyDeviceToDevice);
+			cudaMemcpyAsync(d_VELOCITY_0, d_VELOCITY_2, d_params.N * sizeof(float3), cudaMemcpyDeviceToDevice);
+		}
+
 	}
 
 	return;
-
-}
-
-//resets the value of max_volocity, max_force, sum of density error and max density error
-__global__ void resetValues(float* max_velocity, float* max_force, float* sum_rho_err,float* max_rho_err) {
-	*max_velocity = 0.f;
-	*max_force = 0.f;
-	*sum_rho_err = 0.f;
-	*max_rho_err = 0.f;
-	return;
-}
-
-//resets pressure values
-__global__ void resetPressure(float* pressure) {
-
-	int index = getGlobalIdx_1D_1D();
-
-	if (index >= d_params.N) {
-		return;
-	}
-
-	pressure[index] = 0.f;
-	return;
-}
-
-// calculate the pressure coefficient as in Equation 8 of [1]
-__global__ void pressureCoeff(float *pressure_coeff, float delta_t) {
-	*pressure_coeff = -1 / (2 * powf(d_params.mass * delta_t / d_params.rho_0, 2) * d_params.pressure_delta);
 }

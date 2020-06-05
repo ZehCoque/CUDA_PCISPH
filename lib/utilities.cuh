@@ -20,16 +20,7 @@ char* getMainPath(char* main_path);
 
 char* clearAddressArray(char* buffer, char* s1, char* s2);
 
-void writeTimeKeeper(char* main_path,float max_rho_err);
-
-void getNewSimTime(char* main_path);
-
 double dround(double val, int dp);
 
-void displayProgress(std::chrono::high_resolution_clock::time_point start);
-
-void rewritePVD(char* main_path);
-
-int getLastIter(char* main_path);
 
 uint unsignedIntPow(int x, int p);

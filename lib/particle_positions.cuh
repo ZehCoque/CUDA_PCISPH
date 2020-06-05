@@ -1,6 +1,5 @@
 #pragma once
 #include "device_functions.cuh"
-#include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include "common.cuh"
 
@@ -13,7 +12,7 @@
 // This is called hexagonal packing and it reduces the empty space between particles.
 __global__ void makePrism(float3* position_arr, const float diameter, const float3 initial_pos, const int NPD[], const int size) {
 
-	int index = getGlobalIdx_1D_1D();
+	uint index = getGlobalIdx_1D_1D();
 	
 	int i = index % NPD[0];
 	int j = (index / NPD[0]) % NPD[1];
@@ -41,7 +40,7 @@ __global__ void makePrism(float3* position_arr, const float diameter, const floa
 // This kernel makes a plane with the indicated initial, final and orientation
 __global__ void makePlane(float3* position_arr, const float diameter,const float3 initial_pos,const int offset,const int orientation,const int size,const int NPD[]) {
 
-	int index = getGlobalIdx_1D_1D();
+	uint index = getGlobalIdx_1D_1D();
 
 	if (index >= size) {
 		return;

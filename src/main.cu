@@ -21,7 +21,6 @@ void multiprocessor_writer(); // This function writes the .vtu files using multi
 int main(void)
 {
 
-	float save_count = 0; // this variable is counting the time that passes on every iteration.
 	std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now(); // this variable stores the timestamp as soon as the execution starts
 	std::cout << "INITIALIZING...\n";
 
@@ -48,10 +47,9 @@ int main(void)
 	} 
 
 	std::cout << "MAIN LOOP:\n" << "Progress:" << std::endl;
-	while (simulation_time < final_time)
+	while (iteration < 10)
 	{
 		
-		displayProgress(start);
 		int main_loop = mainLoop();
 		
 		// If the main_loop() function returns anything but 0, its an error and the execution must stop
@@ -60,14 +58,10 @@ int main(void)
 			_getch();
 			return 1;
 		}
-		
-		save_count += delta_t;
 
 		//writes files in every save_step defined in the system.txt file inside /props folder
-		if (save_count > save_steps / 1000) {
-			multiprocessor_writer();
-			save_count = fmod(simulation_time,(save_steps / 1000));
-		}
+		//multiprocessor_writer();
+
 
 		
 	}
@@ -77,6 +71,6 @@ int main(void)
 
 	std::cout << "\n\nIt took " << std::chrono::duration_cast<std::chrono::minutes>(end - start).count() << " minutes to execute this simulation.\n";
 
-	_getch(); //Makes
+	_getch(); //Makes the simulation stop until the user presses a button
 	return 0;
 }

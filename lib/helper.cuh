@@ -8,33 +8,6 @@ __device__ float distance(float3 point1, float3 point2) {
 	return norm3df(point1.x - point2.x, point1.y - point2.y, point1.z - point2.z);
 }
 
-__device__ void assignToVec3d(float3* point, float x = 0.f, float y = 0.f, float z = 0.f ) {
-
-	point->x = x;
-	point->y = y;
-	point->z = z;
-
-	return;
-}
-
-__device__ void sumToVec3d(float3* point, float x = 0.f, float y = 0.f, float z = 0.f) {
-
-	point->x += x;
-	point->y += y;
-	point->z += z;
-
-	return;
-}
-
-__device__ void sum2Vec3d(float3* vec1, float3* vec2) {
-
-	vec1->x += vec2->x;
-	vec1->y += vec2->y;
-	vec1->z += vec2->z;
-
-	return;
-}
-
 __device__ char* device_strcpy(char* dest, const char* src) {
 	int i = 0;
 	do {

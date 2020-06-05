@@ -13,7 +13,6 @@
 #include "dirent.h"
 #include <sstream>
 #include <algorithm>
-#include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
@@ -38,6 +37,8 @@ struct SimParams
 	float boundary_diameter;
 	float pressure_delta;
 	float mass;
+	float max_vol_comp; // variable to store computed value of max volume compression ( = params.rho_0 * vol_comp_perc / 100 )
+	float max_rho_fluc; // variable to store computed value of max density fluctuation ( = params.rho_0 * dens_fluc_perc / 100 )
 
 	//particle counter
 	uint N; //number of fluid particles
@@ -45,8 +46,6 @@ struct SimParams
 	uint T; //total number of particles
 
 	//variables for hashtable
-	size_t pitch; //this variable is defined by the GPU when the cudaMallocPitch runs
-	uint particles_per_row; //this is the maximum number of neighbors a particle can have due to memory allocation
 	uint hashtable_size; //this is the size of the hashtable. Must be a power of 2.
 
 	//physical constants
@@ -54,9 +53,17 @@ struct SimParams
 	float visc_const; //viscosity constant
 	float st_const; // surface tension constant
 	float epsilon; // damping coefficient for collision
-
 	float3 gravity; //stores the pointer to the gravity data in the CPU
+
+	//CUDA parametes
+	uint block_size;
 
 };
 
-__constant__ SimParams d_params; //parameters stored in the constant memory of GPU
+
+#ifndef D_PARAMS_
+#define D_PARAMS_
+
+extern __constant__ SimParams d_params; //parameters stored in the constant memory of GPU
+
+#endif
