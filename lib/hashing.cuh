@@ -9,23 +9,24 @@
 
 __device__ int3 calcGridPos(float3 point) {
 
-    uint p1 = 73856093;
-    uint p2 = 19349669;
-    uint p3 = 83492791;
-
     int3 gridPos;
 
-    gridPos.x = static_cast<unsigned int>(floor(point.x * d_params.invh)) * p1;
-    gridPos.y = static_cast<unsigned int>(floor(point.y * d_params.invh)) * p2;
-    gridPos.z = static_cast<unsigned int>(floor(point.z * d_params.invh)) * p3;
+    gridPos.x = static_cast<unsigned int>(floor(point.x * d_params.invh));
+    gridPos.y = static_cast<unsigned int>(floor(point.y * d_params.invh));
+    gridPos.z = static_cast<unsigned int>(floor(point.z * d_params.invh));
 
     return gridPos;
 }
 
 __device__ uint calcGridHash(int3 gridPos) {
 
+    uint p1 = 73856093;
+    uint p2 = 19349669;
+    uint p3 = 83492791;
     
-    return ((gridPos.x ^ gridPos.y ^ gridPos.z) & (d_params.hashtable_size - 1));
+    int3 __gridPos = make_int3(gridPos.x * p1, gridPos.y * p2, gridPos.z * p3);
+
+    return ((__gridPos.x ^ __gridPos.y ^ __gridPos.z) & (d_params.hashtable_size - 1));
 
 }
 
@@ -96,6 +97,8 @@ __global__ void getCellAndStartEnd( uint* cellStart,
         sharedHash[0] = gridParticleHash[index - 1];
 
     }
+
+    printf("%d\n", hash);
 
     __syncthreads();
 

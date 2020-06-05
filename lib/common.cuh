@@ -39,6 +39,7 @@ struct SimParams
 	float mass;
 	float max_vol_comp; // variable to store computed value of max volume compression ( = params.rho_0 * vol_comp_perc / 100 )
 	float max_rho_fluc; // variable to store computed value of max density fluctuation ( = params.rho_0 * dens_fluc_perc / 100 )
+	float3 world_origin;
 
 	//particle counter
 	uint N; //number of fluid particles

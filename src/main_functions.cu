@@ -99,7 +99,7 @@ int fileReader() {
 
 	const char* phys_props_names[] = { "rho_0","visc_const","surface_tension_const","collision_damping_coeff" };
 	const char* init_cond_names[] = {"particle_radius","mass","fluid_initial_coord","fluid_final_coord","boundary_initial_coord","boundary_final_coord","fluid_initial_velocity","maximum_volume_compression","maximum_density_fluctuation"};
-	const char* system_names[] = { "initial_delta_t","initial_time","final_time","neighbors_per_particle", "save_steps","results_folder"};
+	const char* system_names[] = { "initial_delta_t","initial_time","final_time","results_folder"};
 	
 	const uint phys_props_size = sizeof(phys_props_names) / 8; 
 	const uint init_cond_size = sizeof(init_cond_names) / 8;
@@ -360,6 +360,7 @@ int fileReader() {
 			if (i < system_size) {
 				bool save_char = false;
 				if (strstr(row, "\"") != nullptr) {
+					num_buffer[0] = 0;
 					for (int j = 0; j < strlen(row); j++) {
 						if (row[j] == 34 && !save_char) {
 							save_char = true;
@@ -577,8 +578,21 @@ int initialize() {
 	// Free GPU memory for fluid particles (this memory will be reallocated with another name soon)
 	cudaFree(D_FLUID_POSITIONS);
 
-	// calculating pressure delta (without the beta variable) as stated in section 2.3 of [1]
+	//get world origin
+	params.world_origin = make_float3(std::numeric_limits<float>::infinity());
+	for (int i = 0; i < params.B; i++) {
+		if (BOUNDARY_POSITIONS[i].x < params.world_origin.x) {
+			params.world_origin.x = BOUNDARY_POSITIONS[i].x;
+		}
+		if (BOUNDARY_POSITIONS[i].y < params.world_origin.y) {
+			params.world_origin.y = BOUNDARY_POSITIONS[i].y;
+		}
+		if (BOUNDARY_POSITIONS[i].z < params.world_origin.z) {
+			params.world_origin.z = BOUNDARY_POSITIONS[i].z;
+		}
+	}
 
+	// calculating pressure delta (without the beta variable) as stated in section 2.3 of [1]
 	int count = 0;
 	float min_r = std::numeric_limits<float>::infinity();
 	int selected_index;
@@ -624,7 +638,7 @@ int initialize() {
 	params.pressure_delta = -dot_product(Grad_W, Grad_W) - dot_Grad_W;
 
 	// Getting hashtable size
-	uint tmp_elev = 31;
+	uint tmp_elev = 19;
 	params.hashtable_size = unsignedIntPow(2, tmp_elev);
 	while (params.T > params.hashtable_size) {
 		tmp_elev++;
@@ -632,14 +646,13 @@ int initialize() {
 	}
 
 	//Transforing hashtable variables to GPU
-	gpuErrchk(cudaMalloc(&d_cellStart, params.T * sizeof(uint)));
-	gpuErrchk(cudaMalloc(&d_cellEnd, params.T * sizeof(uint)));
+	gpuErrchk(cudaMalloc(&d_cellStart, params.hashtable_size * sizeof(uint)));
+	gpuErrchk(cudaMalloc(&d_cellEnd, params.hashtable_size * sizeof(uint)));
 	gpuErrchk(cudaMalloc(&d_gridParticleHash, params.T * sizeof(uint)));
 	gpuErrchk(cudaMalloc(&d_gridParticleIndex, params.T * sizeof(uint)));
 	gpuErrchk(cudaMalloc(&d_stepVariableArray, params.T * sizeof(float)));
 	gpuErrchk(cudaMalloc(&d_stepVariableArray3, params.T * sizeof(float3)));
 	gpuErrchk(cudaMalloc(&d_stepVariableArrayInt, params.T * sizeof(int)));
-
 	// Transfering params to GPU
 	gpuErrchk(cudaMemcpyToSymbol(d_params, &params, sizeof(SimParams)));
 
@@ -647,17 +660,26 @@ int initialize() {
 	//hash boundary particles
 	hashParticlePositionsBoundary << <grid_size, params.block_size >> > (D_BOUNDARY_POSITIONS, d_gridParticleHash, d_gridParticleIndex);
 	sortParticles(d_gridParticleHash, d_gridParticleIndex, params.B);
-	getCellAndStartEnd << <grid_size, params.block_size >> > (d_cellStart, d_cellEnd, d_gridParticleHash);
-	gpuErrchk(cudaMemcpy(d_stepVariableArray3, D_BOUNDARY_POSITIONS, params.B * sizeof(float3), cudaMemcpyDeviceToDevice));
-	sortArrays_float3 << <grid_size, params.block_size >> > (D_BOUNDARY_POSITIONS, d_stepVariableArray3, d_gridParticleHash);
+	
+	uint shared_memory_size = sizeof(uint) * (params.block_size + 1);
+	getCellAndStartEnd << <grid_size, params.block_size, shared_memory_size >> > (d_cellStart, d_cellEnd, d_gridParticleHash);
+	gpuErrchk(cudaPeekAtLastError()); // this is for checking if there was any error during the kernel execution
+	gpuErrchk(cudaDeviceSynchronize());
 
+	gpuErrchk(cudaMemcpy(d_stepVariableArray3, D_BOUNDARY_POSITIONS, params.B * sizeof(float3), cudaMemcpyDeviceToDevice));
+
+
+	sortArrays_float3 << <grid_size, params.block_size >> > (D_BOUNDARY_POSITIONS, d_stepVariableArray3, d_gridParticleHash);
+	gpuErrchk(cudaPeekAtLastError()); // this is for checking if there was any error during the kernel execution
+	gpuErrchk(cudaDeviceSynchronize());
 	float* d_boundary_mass; //pointer to device memory of boundary "fake" mass ( or psi )
 	gpuErrchk(cudaMalloc((void**)&d_boundary_mass, params.B * sizeof(float)));
 
 	// calculates "fake" mass (or psi) for each boundary particle as state in [3]
 	// check "particle_parameters.cuh" file in /lib folder for more details
 	boundaryPsi << <grid_size, params.block_size >> > (d_boundary_mass,D_BOUNDARY_POSITIONS,d_cellStart, d_cellEnd);
-
+	gpuErrchk(cudaPeekAtLastError()); // this is for checking if there was any error during the kernel execution
+	gpuErrchk(cudaDeviceSynchronize());
 	float* boundary_mass = (float*)malloc(params.B * sizeof(float)); //CPU pointer to boundary mass
 	//copy boundary mass from GPU to CPU
 	gpuErrchk(cudaMemcpy(boundary_mass, d_boundary_mass, (size_t)params.B * sizeof(float), cudaMemcpyDeviceToHost));

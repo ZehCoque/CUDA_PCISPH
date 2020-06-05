@@ -78,7 +78,7 @@ char* getMainPath(char* main_path) {
 
 	const char* starter_path = new const char[256];
 
-	if (strlen(user_results_folder) == 0) {
+	if (user_results_folder[0] == 0) {
 		starter_path = "./results";
 	}
 	else {
