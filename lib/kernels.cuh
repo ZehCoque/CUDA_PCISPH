@@ -1,5 +1,6 @@
 #pragma once
 #include <device_launch_parameters.h>
+#include "common.cuh"
 
 __device__ float Poly6_Kernel(float *r)
 {
@@ -9,11 +10,11 @@ __device__ float Poly6_Kernel(float *r)
 	return 1.5666814710f * invh9 * tmp * tmp * tmp;
 }
 
-__host__ __device__ float3 Poly6_Gradient(float3* position_i, float3* position_j, float *r) {
+__host__ __device__ float3 Poly6_Gradient(float3* position_i, float3* position_j, float *r, float* invh, float* h) {
 
 	float3 poly6_grad;
 
-	float tmp = 9.4000888263f * powf(d_params.invh, 9) * powf(powf(d_params.h,2)-powf(*r,2),2);
+	float tmp = 9.4000888263f * powf(*invh, 9) * powf(powf(*h,2)-powf(*r,2),2);
 
 	poly6_grad =  make_float3(tmp * (position_i->x - position_j->x), 
 		tmp * (position_i->y - position_j->y), 
@@ -73,11 +74,11 @@ __device__ float ST_Kernel(float *r, int *type)
 	return 0.f;
 }
 
-__host__ __device__ float3 Spiky_Gradient(float3* position_i, float3* position_j, float *r) {
+__host__ __device__ float3 Spiky_Gradient(float3* position_i, float3* position_j, float *r, float* invh, float* h) {
 
 	float3 spiky;
 
-	float tmp = -14.323944878f * powf(d_params.invh, 6) * powf(d_params.h - *r, 2);
+	float tmp = -14.323944878f * powf(*invh, 6) * powf(*h - *r, 2);
 
 	spiky =  make_float3(tmp * (position_i->x - position_j->x), 
 		tmp * (position_i->y - position_j->y), 

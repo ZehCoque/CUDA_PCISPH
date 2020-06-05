@@ -60,10 +60,4 @@ struct SimParams
 
 };
 
-
-#ifndef D_PARAMS_
-#define D_PARAMS_
-
 extern __constant__ SimParams d_params; //parameters stored in the constant memory of GPU
-
-#endif

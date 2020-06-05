@@ -5,3 +5,4 @@
 *.gitattributes
 /.vs
 /results
+*.pdb

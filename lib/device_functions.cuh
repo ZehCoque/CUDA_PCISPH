@@ -1,6 +1,7 @@
 #pragma once
-#include <cuda_runtime.h>
+#include "common.cuh"
 #include <device_launch_parameters.h>
+#include "vector_types.h"
 
 __device__ uint getGlobalIdx_3D_3D() {
 	uint blockId = blockIdx.x + blockIdx.y * gridDim.x

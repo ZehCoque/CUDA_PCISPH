@@ -363,7 +363,7 @@ __global__ void boundaryNormal(float3* position, float3* normal, float3 b_initia
 }
 
 // This kernel calculates the fluid normal according to Equation between equations 2 and 3 of [4] (it does not have a number)
-__global__ void fluidNormal(float3 *position, float3 *normal,float* mass, float* density, int* type, uint* cellStart, uint* cellEnd) {
+__global__ void fluidNormal(float3 *position, float3 *normal,float* mass, float* density, uint* type, uint* cellStart, uint* cellEnd) {
 
 	uint index = getGlobalIdx_1D_1D();
 
@@ -376,7 +376,7 @@ __global__ void fluidNormal(float3 *position, float3 *normal,float* mass, float*
 	float3* sharedPos = shared_array;
 	float* sharedDensity = (float*)&sharedPos[d_params.block_size];
 	float* sharedMass = &sharedDensity[d_params.block_size];
-	int* sharedType = (int*)&sharedMass[d_params.block_size];
+	uint* sharedType = (uint*)&sharedMass[d_params.block_size];
 
 	int sharedMemIndex = threadIdx.x - blockIdx.x * blockDim.x;
 
@@ -388,8 +388,6 @@ __global__ void fluidNormal(float3 *position, float3 *normal,float* mass, float*
 	__syncthreads();
 
 	float3 current_position = sharedPos[sharedMemIndex];
-	float current_density = sharedDensity[sharedMemIndex];
-	float current_mass = sharedMass[sharedMemIndex];
 	
 	int3 gridPos = calcGridPos(current_position);
 
@@ -413,7 +411,7 @@ __global__ void fluidNormal(float3 *position, float3 *normal,float* mass, float*
 						float r = distance(current_position, neighbor_position);
 						if (r <= d_params.h && r > 0) {
 
-							float3 poly6_gradient = Poly6_Gradient(&current_position, &neighbor_position, &r);
+							float3 poly6_gradient = Poly6_Gradient(&current_position, &neighbor_position, &r, &d_params.invh,&d_params.h);
 
 							float neigbor_density = sharedDensity[sharedMemIndex];
 							float neighbor_mass = sharedMass[sharedMemIndex];
@@ -442,7 +440,7 @@ __global__ void fluidNormal(float3 *position, float3 *normal,float* mass, float*
 
 // This kernel calculates the viscosity_force (according to [5]), surface tension and adhesion (according to [4]) forces.
 // Note: The adhesion and surface tension forces are calculated in the same functions to conserve memory and lines of code
-__global__ void nonPressureForces(float3* position,float3* velocity, float3* viscosity_force, float3* st_force,float3* normal, float* mass, float* density, int* type, uint * cellStart, uint * cellEnd) {
+__global__ void nonPressureForces(float3* position,float3* velocity, float3* viscosity_force, float3* st_force,float3* normal, float* mass, float* density, uint* type, uint * cellStart, uint * cellEnd) {
 
 	uint index = getGlobalIdx_1D_1D();
 
@@ -456,7 +454,7 @@ __global__ void nonPressureForces(float3* position,float3* velocity, float3* vis
 	float3* sharedPos = shared_array;
 	float* sharedDensity = (float*)&sharedPos[d_params.block_size];
 	float* sharedMass = &sharedDensity[d_params.block_size];
-	int* sharedType = (int*)&sharedMass[d_params.block_size];
+	uint* sharedType = (uint*)&sharedMass[d_params.block_size];
 	float3* sharedVel = (float3*)&sharedType[d_params.block_size];
 	float3* sharedNormal = &sharedVel[d_params.block_size];
 
@@ -557,7 +555,7 @@ __global__ void positionAndVelocity(float3* position1,float3* velocity1, float3*
 }
 
 // A collision handler according to [2]
-__global__ void collisionHandler(float3* position,float3* velocity, float3* normal, int* type, uint* cellStart, uint* cellEnd) {
+__global__ void collisionHandler(float3* position,float3* velocity, float3* normal, uint* type, uint* cellStart, uint* cellEnd) {
 
 	uint index = getGlobalIdx_1D_1D();
 
@@ -569,7 +567,7 @@ __global__ void collisionHandler(float3* position,float3* velocity, float3* norm
 	float3 current_st_force = make_float3(0.f, 0.f, 0.f);
 
 	float3* sharedPos = shared_array;
-	int* sharedType = (int*)&sharedType[d_params.block_size];
+	uint* sharedType = (uint*)&sharedPos[d_params.block_size];
 	float3* sharedVel = (float3*)&sharedType[d_params.block_size];
 	float3* sharedNormal = &sharedVel[d_params.block_size];
 
@@ -742,7 +740,7 @@ __global__ void PressureCalc(float* pressure, float* density, float *delta_t) {
 }
 
 // Calculates pressure force according to [1] and [2]
-__global__ void PressureForceCalc(float3* position, float3* pressure_force, float* density, float* pressure, float* mass, int* type, uint* cellStart, uint* cellEnd) {
+__global__ void PressureForceCalc(float3* position, float3* pressure_force, float* density, float* pressure, float* mass, uint* type, uint* cellStart, uint* cellEnd) {
 
 	uint index = getGlobalIdx_1D_1D();
 
@@ -753,7 +751,7 @@ __global__ void PressureForceCalc(float3* position, float3* pressure_force, floa
 	float3 current_pressure_force = make_float3(0.f,0.f,0.f);
 
 	float3* sharedPos = shared_array;
-	int* sharedType = (int*)&sharedType[d_params.block_size];
+	uint* sharedType = (uint*)&sharedPos[d_params.block_size];
 	float* sharedDensity = (float*)&sharedType[d_params.block_size];
 	float* sharedPressure = &sharedDensity[d_params.block_size];
 	float* sharedMass = &sharedPressure[d_params.block_size];
@@ -774,10 +772,6 @@ __global__ void PressureForceCalc(float3* position, float3* pressure_force, floa
 	float current_mass = sharedMass[sharedMemIndex];
 
 	int3 gridPos = calcGridPos(current_position);
-
-	float3 n_c_i;
-	float w_c_ib_sum;
-	float w_c_ib_second_sum;
 
 	for (int i = -1; i < 2; i++) {
 		for (int j = -1; j < 2; j++) {
@@ -804,7 +798,7 @@ __global__ void PressureForceCalc(float3* position, float3* pressure_force, floa
 							float neighbor_density = sharedDensity[sharedMemIndex];
 							int neighbor_type = sharedType[sharedMemIndex];
 
-							current_pressure_force = PressureForce(&current_pressure,&neighbor_pressure,&current_mass,&neighbor_mass,&current_density,&neighbor_density,&neighbor_type, Spiky_Gradient(&current_position, &neighbor_position, &r));
+							current_pressure_force = PressureForce(&current_pressure,&neighbor_pressure,&current_mass,&neighbor_mass,&current_density,&neighbor_density,&neighbor_type, Spiky_Gradient(&current_position, &neighbor_position, &r, &d_params.invh, &d_params.h));
 						}
 					}
 				}
@@ -849,6 +843,7 @@ __global__ void getMaxVandF(float3* velocity,float3* pressure_force,float3* visc
 	return;
 }
 
+// criterias for changes in delta_t value according to session 3.3 of [2]
 __global__ void deltaTCriteria(float* max_force,float* max_velocity, float* max_rho_err, float* sum_rho_err, float* delta_t, float* max_rho_err_t_1, float3* d_POSITION_0, float3* d_POSITION_1, float3* d_POSITION_2, float3* d_VELOCITY_0, float3* d_VELOCITY_1, float3* d_VELOCITY_2) {
 
 	bool criteria1;
@@ -907,4 +902,14 @@ __global__ void deltaTCriteria(float* max_force,float* max_velocity, float* max_
 	}
 
 	return;
+}
+void resetValues(float* max_velocity, float* max_force, float* sum_rho_err, float* max_rho_err) {
+	thrust::device_ptr<float> d_max_v(max_velocity);
+	thrust::fill(d_max_v, d_max_v + 1, 0.f);
+	thrust::device_ptr<float> d_max_f(max_force);
+	thrust::fill(d_max_f, d_max_f + 1, 0.f);
+	thrust::device_ptr<float> d_sum_d_er(sum_rho_err);
+	thrust::fill(d_sum_d_er, d_sum_d_er + 1, 0.f);
+	thrust::device_ptr<float> d_max_d_er(max_rho_err);
+	thrust::fill(d_max_d_er, d_max_d_er + 1, 0.f);
 }
