@@ -653,36 +653,37 @@ int initialize() {
 	gpuErrchk(cudaMalloc(&d_stepVariableArray, params.T * sizeof(float)));
 	gpuErrchk(cudaMalloc(&d_stepVariableArray3, params.T * sizeof(float3)));
 	gpuErrchk(cudaMalloc(&d_stepVariableArrayInt, params.T * sizeof(int)));
+
 	// Transfering params to GPU
 	gpuErrchk(cudaMemcpyToSymbol(d_params, &params, sizeof(SimParams)));
 
 	grid_size = params.B / params.block_size + 1;
 	//hash boundary particles
-	hashParticlePositionsBoundary << <grid_size, params.block_size >> > (D_BOUNDARY_POSITIONS, d_gridParticleHash, d_gridParticleIndex);
+	hashParticlePositions << <grid_size, params.block_size >> > (D_BOUNDARY_POSITIONS, d_gridParticleHash, d_gridParticleIndex, params.B);
 	sortParticles(d_gridParticleHash, d_gridParticleIndex, params.B);
 	
 	uint shared_memory_size = sizeof(uint) * (params.block_size + 1);
-	getCellAndStartEnd << <grid_size, params.block_size, shared_memory_size >> > (d_cellStart, d_cellEnd, d_gridParticleHash);
-	gpuErrchk(cudaPeekAtLastError()); // this is for checking if there was any error during the kernel execution
-	gpuErrchk(cudaDeviceSynchronize());
+	getCellAndStartEnd << <grid_size, params.block_size, shared_memory_size >> > (d_cellStart, d_cellEnd, d_gridParticleHash, params.B);
 
 	gpuErrchk(cudaMemcpy(d_stepVariableArray3, D_BOUNDARY_POSITIONS, params.B * sizeof(float3), cudaMemcpyDeviceToDevice));
 
-
-	sortArrays_float3 << <grid_size, params.block_size >> > (D_BOUNDARY_POSITIONS, d_stepVariableArray3, d_gridParticleHash);
+	sortArrays_float3 << <grid_size, params.block_size >> > (D_BOUNDARY_POSITIONS, d_stepVariableArray3, d_gridParticleHash, params.B);
 	gpuErrchk(cudaPeekAtLastError()); // this is for checking if there was any error during the kernel execution
 	gpuErrchk(cudaDeviceSynchronize());
+
 	float* d_boundary_mass; //pointer to device memory of boundary "fake" mass ( or psi )
 	gpuErrchk(cudaMalloc((void**)&d_boundary_mass, params.B * sizeof(float)));
 
 	// calculates "fake" mass (or psi) for each boundary particle as state in [3]
 	// check "particle_parameters.cuh" file in /lib folder for more details
-	boundaryPsi << <grid_size, params.block_size >> > (d_boundary_mass,D_BOUNDARY_POSITIONS,d_cellStart, d_cellEnd);
+	shared_memory_size = sizeof(float3) * params.block_size;
+	boundaryPsi << <grid_size, params.block_size, shared_memory_size >> > (d_boundary_mass, D_BOUNDARY_POSITIONS, d_cellStart, d_cellEnd);
 	gpuErrchk(cudaPeekAtLastError()); // this is for checking if there was any error during the kernel execution
 	gpuErrchk(cudaDeviceSynchronize());
+
 	float* boundary_mass = (float*)malloc(params.B * sizeof(float)); //CPU pointer to boundary mass
 	//copy boundary mass from GPU to CPU
-	gpuErrchk(cudaMemcpy(boundary_mass, d_boundary_mass, (size_t)params.B * sizeof(float), cudaMemcpyDeviceToHost));
+	gpuErrchk(cudaMemcpy(boundary_mass, d_boundary_mass, params.B * sizeof(float), cudaMemcpyDeviceToHost));
 	gpuErrchk(cudaFree(d_boundary_mass));
 
 	float3* d_boundary_normal; //device pointer for boundary normal

@@ -23,13 +23,13 @@ __global__ void boundaryPsi(float* psi, float3* position,uint *cellStart, uint *
 	}
 
 	float current_psi = 0.f;
-	float3 *sharedPos = shared_array;
-	int sharedMemIndex = threadIdx.x - blockIdx.x * blockDim.x;
+	float3 *sharedPos = &shared_array[0];
+	int sharedMemIndex = threadIdx.x;
 
 	sharedPos[sharedMemIndex] = position[index];
-
+	
 	__syncthreads();
-
+	//printf("%d | %g %g %g | %g %g %g\n", index, sharedPos[sharedMemIndex].x, sharedPos[sharedMemIndex].y, sharedPos[sharedMemIndex].z, position[index].x, position[index].y, position[index].z);
 	float3 current_position = sharedPos[sharedMemIndex];
 
 	int3 gridPos = calcGridPos(current_position);
@@ -52,9 +52,11 @@ __global__ void boundaryPsi(float* psi, float3* position,uint *cellStart, uint *
 						float3 neighbor_position = sharedPos[sharedMemIndex];
 
 						float r = distance(current_position, neighbor_position);
+
 						if (r <= d_params.h) {
 							current_psi += Poly6_Kernel(&r);
 						}
+
 					}
 				}
 			}
@@ -378,7 +380,7 @@ __global__ void fluidNormal(float3 *position, float3 *normal,float* mass, float*
 	float* sharedMass = &sharedDensity[d_params.block_size];
 	uint* sharedType = (uint*)&sharedMass[d_params.block_size];
 
-	int sharedMemIndex = threadIdx.x - blockIdx.x * blockDim.x;
+	int sharedMemIndex = threadIdx.x ;
 
 	sharedPos[sharedMemIndex] = position[index];
 	sharedDensity[sharedMemIndex] = density[index];
@@ -457,8 +459,7 @@ __global__ void nonPressureForces(float3* position,float3* velocity, float3* vis
 	uint* sharedType = (uint*)&sharedMass[d_params.block_size];
 	float3* sharedVel = (float3*)&sharedType[d_params.block_size];
 	float3* sharedNormal = &sharedVel[d_params.block_size];
-
-	int sharedMemIndex = threadIdx.x - blockIdx.x * blockDim.x;
+	int sharedMemIndex = threadIdx.x ;
 
 	sharedPos[sharedMemIndex] = position[index];
 	sharedVel[sharedMemIndex] = velocity[index];
@@ -571,7 +572,7 @@ __global__ void collisionHandler(float3* position,float3* velocity, float3* norm
 	float3* sharedVel = (float3*)&sharedType[d_params.block_size];
 	float3* sharedNormal = &sharedVel[d_params.block_size];
 
-	int sharedMemIndex = threadIdx.x - blockIdx.x * blockDim.x;
+	int sharedMemIndex = threadIdx.x ;
 
 	sharedPos[sharedMemIndex] = position[index];
 	sharedVel[sharedMemIndex] = velocity[index];
@@ -662,7 +663,7 @@ __global__ void DensityCalc(float3* position, float* density, float* mass, uint*
 	float3* sharedPos = shared_array;
 	float* sharedMass = (float*)&sharedPos[d_params.block_size];
 
-	int sharedMemIndex = threadIdx.x - blockIdx.x * blockDim.x;
+	int sharedMemIndex = threadIdx.x ;
 
 	sharedPos[sharedMemIndex] = position[index];
 	sharedMass[sharedMemIndex] = mass[index];
@@ -756,7 +757,7 @@ __global__ void PressureForceCalc(float3* position, float3* pressure_force, floa
 	float* sharedPressure = &sharedDensity[d_params.block_size];
 	float* sharedMass = &sharedPressure[d_params.block_size];
 
-	int sharedMemIndex = threadIdx.x - blockIdx.x * blockDim.x;
+	int sharedMemIndex = threadIdx.x ;
 
 	sharedPos[sharedMemIndex] = position[index];
 	sharedType[sharedMemIndex] = type[index];

@@ -30,11 +30,11 @@ __device__ uint calcGridHash(int3 gridPos) {
 
 }
 
-__global__ void hashParticlePositions(float3* position, uint* gridParticleHash, uint* gridParticleIndex) {
+__global__ void hashParticlePositions(float3* position, uint* gridParticleHash, uint* gridParticleIndex, uint size = d_params.T) {
 
     uint index = getGlobalIdx_1D_1D();
 
-    if (index >= d_params.T) {
+    if (index >= size) {
         return;
     }
 
@@ -43,25 +43,6 @@ __global__ void hashParticlePositions(float3* position, uint* gridParticleHash, 
     int3 gridPos = calcGridPos(p);
     uint hash = calcGridHash(gridPos);
     
-    gridParticleHash[index] = hash;
-    gridParticleIndex[index] = index;
-
-    return;
-}
-
-__global__ void hashParticlePositionsBoundary(float3* position, uint* gridParticleHash, uint* gridParticleIndex) {
-
-    uint index = getGlobalIdx_1D_1D();
-
-    if (index >= d_params.B) {
-        return;
-    }
-
-    float3 p = position[index];
-
-    int3 gridPos = calcGridPos(p);
-    uint hash = calcGridHash(gridPos);
-
     gridParticleHash[index] = hash;
     gridParticleIndex[index] = index;
 
@@ -77,14 +58,15 @@ void sortParticles(uint* dGridParticleHash, uint* dGridParticleIndex, uint numPa
 
 __global__ void getCellAndStartEnd( uint* cellStart,        
                                     uint* cellEnd,                 
-                                    uint* gridParticleHash       
+                                    uint* gridParticleHash,
+                                    uint size = d_params.T
                                     ) {
 
     extern __shared__ uint sharedHash[];
 
     uint index = getGlobalIdx_1D_1D();
 
-    if (index >= d_params.T) {
+    if (index >= size) {
         return;
     }
 
@@ -98,8 +80,6 @@ __global__ void getCellAndStartEnd( uint* cellStart,
 
     }
 
-    printf("%d\n", hash);
-
     __syncthreads();
 
     if (index == 0 || hash != sharedHash[threadIdx.x])
@@ -110,24 +90,27 @@ __global__ void getCellAndStartEnd( uint* cellStart,
             cellEnd[sharedHash[threadIdx.x]] = index;
     }
 
-    if (index == d_params.N - 1)
+    if (index == size - 1)
     {
         cellEnd[hash] = index + 1;
     }
 
 }
 
-__global__ void sortArrays_float3(float3* sortedArray, float3* oldArray, uint* gridParticleIndex) {
+__global__ void sortArrays_float3(float3* sortedArray, float3* oldArray, uint* gridParticleIndex, uint size = d_params.T) {
     
     uint index = getGlobalIdx_1D_1D();
 
-    if (index >= d_params.T) {
+    if (index >= size) {
         return;
     }
     
     uint sortedIndex = gridParticleIndex[index];
 
-    sortedArray[index] = oldArray[sortedIndex];;
+    float3 sorted = oldArray[sortedIndex];
+
+    printf("%d [%g %g %g] -> %d [%g %g %g] \n", index, sortedArray[index].x, sortedArray[index].y, sortedArray[index].z ,sortedIndex, sorted.x, sorted.y, sorted.z);
+    sortedArray[index] = sorted;
 
 }
 
