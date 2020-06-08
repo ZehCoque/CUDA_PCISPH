@@ -197,3 +197,44 @@ uint unsignedIntPow(int x, int p)
 	if (p % 2 == 0) return tmp * tmp;
 	else return x * tmp * tmp;
 }
+
+void write_txt_file(const char* main_path, const char* filename, uint* array1, uint* array2, int size) {
+
+	char buff[256];
+	strcpy(buff, main_path);
+	strcat(buff, "/");
+	strcat(buff, filename);
+	strcat(buff, ".txt");
+	std::ofstream file;
+	file.open(buff);
+
+	for (int i = 0; i < size; i++) {
+		file << array1[i] << " | " << array2[i] << "\n";
+	}
+
+	file.close();
+
+	return;
+
+}
+
+void write_txt_file_float3(const char* main_path, const char* filename, float3* array1, float3* array2, int size) {
+
+	char buff[256];
+	strcpy(buff, main_path);
+	strcat(buff, "/");
+	strcat(buff, filename);
+	strcat(buff, ".txt");
+	std::ofstream file;
+	file.open(buff);
+
+	for (int i = 0; i < size; i++) {
+		file << array1[i].x << " " << array1[i].y << " " << array1[i].z << " " << " | " 
+			 << array2[i].x << " " << array2[i].y << " " << array2[i].z << "\n";
+	}
+
+	file.close();
+
+	return;
+
+}

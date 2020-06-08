@@ -109,7 +109,6 @@ __global__ void sortArrays_float3(float3* sortedArray, float3* oldArray, uint* g
 
     float3 sorted = oldArray[sortedIndex];
 
-    printf("%d [%g %g %g] -> %d [%g %g %g] \n", index, sortedArray[index].x, sortedArray[index].y, sortedArray[index].z ,sortedIndex, sorted.x, sorted.y, sorted.z);
     sortedArray[index] = sorted;
 
 }

@@ -4,7 +4,6 @@
 #include "common.cuh"
 
 __device__ float distance(float3 point1, float3 point2) {
-	//printf("point1 = [%g %g %g]|point2 = [%g %g %g]|point1 - point2 = [%g %g %g]|norm3df = %g\n", point1.x, point1.y, point1.z, point2.x, point2.y, point2.z, point1.x - point2.x, point1.y - point2.y, point1.z - point2.z, norm3df(point1.x - point2.x, point1.y - point2.y, point1.z - point2.z));
 	return norm3df(point1.x - point2.x, point1.y - point2.y, point1.z - point2.z);
 }
 

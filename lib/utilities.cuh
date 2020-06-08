@@ -22,5 +22,8 @@ char* clearAddressArray(char* buffer, char* s1, char* s2);
 
 double dround(double val, int dp);
 
-
 uint unsignedIntPow(int x, int p);
+
+void write_txt_file(const char* main_path, const char* filename, uint* array1, uint* array2, int size);
+
+void write_txt_file_float3(const char* main_path, const char* filename, float3* array1, float3* array2, int size);
