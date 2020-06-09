@@ -918,8 +918,9 @@ int mainLoop() {
 	uint grid_size = params.T / params.block_size + 1;
 	//hash boundary particles
 	hashParticlePositions << <grid_size, params.block_size >> > (d_POSITION_0, d_gridParticleHash, d_gridParticleIndex);
-	sortParticles(d_gridParticleHash, d_gridParticleIndex, params.B);
-	getCellAndStartEnd << <grid_size, params.block_size >> > (d_cellStart, d_cellEnd, d_gridParticleHash);
+	sortParticles(d_gridParticleHash, d_gridParticleIndex, params.T);
+	uint shared_memory_size = sizeof(uint) * (params.block_size + 1);
+	getCellAndStartEnd << <grid_size, params.block_size, shared_memory_size >> > (d_cellStart, d_cellEnd, d_gridParticleHash);
 
 	//sort all variables
 	float3* address_list3[] = {d_POSITION_0, d_VELOCITY_0, d_PRESSURE_FORCE, d_VISCOSITY_FORCE, d_ST_FORCE, d_NORMAL};
@@ -996,8 +997,6 @@ int mainLoop() {
 
 	// -> adapt time step
 
-	
-
 	//reset values of max velocity, max force, sum of density error and max rho error
 	resetValues(d_max_velocity, d_max_force, d_sum_rho_err, d_max_rho_err);
 
@@ -1010,6 +1009,10 @@ int mainLoop() {
 
 	iteration++;
 	printf("%d\n", iteration);
+
+	gpuErrchk(cudaPeekAtLastError()); // this is for checking if there was any error during the kernel execution
+	gpuErrchk(cudaDeviceSynchronize());
+
 	return 0;
 }
 
