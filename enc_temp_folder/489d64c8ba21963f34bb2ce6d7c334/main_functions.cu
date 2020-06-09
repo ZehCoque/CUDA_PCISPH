@@ -578,6 +578,20 @@ int initialize() {
 	// Free GPU memory for fluid particles (this memory will be reallocated with another name soon)
 	cudaFree(D_FLUID_POSITIONS);
 
+	//get world origin
+	params.world_origin = make_float3(std::numeric_limits<float>::infinity());
+	for (int i = 0; i < params.B; i++) {
+		if (BOUNDARY_POSITIONS[i].x < params.world_origin.x) {
+			params.world_origin.x = BOUNDARY_POSITIONS[i].x;
+		}
+		if (BOUNDARY_POSITIONS[i].y < params.world_origin.y) {
+			params.world_origin.y = BOUNDARY_POSITIONS[i].y;
+		}
+		if (BOUNDARY_POSITIONS[i].z < params.world_origin.z) {
+			params.world_origin.z = BOUNDARY_POSITIONS[i].z;
+		}
+	}
+
 	// calculating pressure delta (without the beta variable) as stated in section 2.3 of [1]
 	int count = 0;
 	float min_r = std::numeric_limits<float>::infinity();

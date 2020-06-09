@@ -28,7 +28,7 @@ __global__ void boundaryPsi(float* psi, float3* position,uint *cellStart, uint *
 	float3 current_position = position[index];
 
 	int3 gridPos = calcGridPos(current_position);
-	
+
 	for (int i = -1; i < 2; i++) {
 		for (int j = -1; j < 2; j++) {
 			for (int k = -1; k < 2; k++) {
