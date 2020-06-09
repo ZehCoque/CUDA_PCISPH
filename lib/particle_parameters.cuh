@@ -14,7 +14,11 @@ extern __shared__ float3 shared_array[]; //pointer to dynamically allocated shar
 // 2. In this file, all functions marked with ** are mostly the same, only changing its core. The functions are basically searching for particle neighbors in the hashing table and performing the required calculation with the results. The function core is defined with the //CORE comment
 
 // This kernel calculates the boundary "fake" mass (psi) as defined by Equation 5 of [3]
-__global__ void boundaryPsi(float* psi, float3* position,uint *cellStart, uint *cellEnd, uint* gridParticleIndex) {
+__global__ void boundaryPsi(float* psi, 
+							const float3* __restrict__ position,
+							const uint* __restrict__ cellStart,
+							const uint* __restrict__ cellEnd, 
+							const uint* __restrict__ gridParticleIndex) {
 	
 	uint index = getGlobalIdx_1D_1D();
 
@@ -359,7 +363,14 @@ __global__ void boundaryNormal(float3* position, float3* normal, float3 b_initia
 }
 
 // This kernel calculates the fluid normal according to Equation between equations 2 and 3 of [4] (it does not have a number)
-__global__ void fluidNormal(float3 *position, float3 *normal,float* mass, float* density, uint* type, uint* cellStart, uint* cellEnd, uint* gridParticleIndex) {
+__global__ void fluidNormal(const float3* __restrict__ position, 
+							float3 *normal,
+							const float* __restrict__ mass, 
+							const float* __restrict__ density, 
+							const uint* __restrict__ type,
+							const uint* __restrict__ cellStart, 
+							const uint* __restrict__ cellEnd,
+							const uint* __restrict__ gridParticleIndex) {
 
 	uint index = getGlobalIdx_1D_1D();
 
@@ -424,8 +435,18 @@ __global__ void fluidNormal(float3 *position, float3 *normal,float* mass, float*
 
 // This kernel calculates the viscosity_force (according to [5]), surface tension and adhesion (according to [4]) forces.
 // Note: The adhesion and surface tension forces are calculated in the same functions to conserve memory and lines of code
-__global__ void nonPressureForces(float3* position,float3* velocity, float3* viscosity_force, float3* st_force,float3* normal, float* mass, float* density, uint* type, uint * cellStart, uint * cellEnd, uint* gridParticleIndex) {
-
+__global__ void nonPressureForces(const float3* __restrict__ position,
+								  const float3* __restrict__ velocity,
+								  float3* viscosity_force, 
+								  float3* st_force,
+								  const float3* __restrict__ normal, 
+								  const float* __restrict__ mass, 
+								  const float* __restrict__ density, 
+								  const uint* __restrict__ type, 
+								  const uint * __restrict__ cellStart, 
+								  const uint * __restrict__ cellEnd, 
+								  const uint* __restrict__ gridParticleIndex) {
+	
 	uint index = getGlobalIdx_1D_1D();
 
 	if (index >= d_params.N) {
@@ -492,7 +513,15 @@ __global__ void nonPressureForces(float3* position,float3* velocity, float3* vis
 }
 
 // A kernel to calculate velocity and positions according to the applyed forces
-__global__ void positionAndVelocity(float3* position1,float3* velocity1, float3* position2, float3* velocity2,float3* pressure_force,float3* viscosity_force, float3* st_force, float* mass, float *delta_t) {
+__global__ void positionAndVelocity(float3* position1,
+									float3* velocity1, 
+									const float3* __restrict__ position2, 
+									const float3* __restrict__ velocity2,
+									const float3* __restrict__ pressure_force,
+									const float3* __restrict__ viscosity_force, 
+									const float3* __restrict__ st_force,
+									const float* __restrict__ mass,
+									const float* __restrict__ delta_t) {
 
 	// 1 -> Will be changed by this kernel
 	// 2 -> Wont be changed by this kernel
@@ -503,7 +532,15 @@ __global__ void positionAndVelocity(float3* position1,float3* velocity1, float3*
 		return;
 	}
 
-	float tmp = *delta_t / mass[index];
+	__shared__ float s_delta_t;
+
+	if (threadIdx.x == 0) {
+		s_delta_t = *delta_t;
+	}
+
+	__syncthreads();
+
+	float tmp = s_delta_t / mass[index];
 
 	float3 tmp_velocity;
 
@@ -521,7 +558,15 @@ __global__ void positionAndVelocity(float3* position1,float3* velocity1, float3*
 }
 
 // A collision handler according to [2]
-__global__ void collisionHandler(float3* position,float3* velocity, float3* normal, uint* type, uint* cellStart, uint* cellEnd, uint* gridParticleIndex) {
+__global__ void collisionHandler(const float3* __restrict__ position,
+								 const float3* __restrict__ velocity,
+								 float3* new_position, 
+								 float3* new_velocity, 
+								 const float3* __restrict__ normal,
+								 const uint* __restrict__ type, 
+								 const uint* __restrict__ cellStart,
+								 const uint* __restrict__ cellEnd, 
+								 const uint* __restrict__ gridParticleIndex) {
 
 	uint index = getGlobalIdx_1D_1D();
 
@@ -589,20 +634,25 @@ __global__ void collisionHandler(float3* position,float3* velocity, float3* norm
 	float inv_w = 1 / w_c_ib_sum;
 	float tmp = inv_norm_normal * w_c_ib_second_sum * inv_w;
 
-	newposition[particleIndex] += n_c_i * tmp;
+	new_position[particleIndex] += n_c_i * tmp;
 
 	//calculating new velocity
 	float dot = dot_product(current_velocity, current_normal);
 	float3 v_n;
 	v_n = dot * n_c_i;
 
-	newvelocity[particleIndex] = d_params.epsilon * (current_velocity - v_n);
+	new_velocity[particleIndex] = d_params.epsilon * (current_velocity - v_n);
 
 	return;
 }
 
 // A kernel to compute density according to all references
-__global__ void DensityCalc(float3* position, float* density, float* mass, uint* cellStart, uint* cellEnd, uint* gridParticleIndex) {
+__global__ void DensityCalc(const float3* __restrict__ position,
+							float* density,
+							const float* __restrict__ mass, 
+							const uint* __restrict__ cellStart, 
+							const uint* __restrict__ cellEnd, 
+							const uint* __restrict__ gridParticleIndex) {
 
 	uint index = getGlobalIdx_1D_1D();
 
@@ -652,7 +702,9 @@ __global__ void DensityCalc(float3* position, float* density, float* mass, uint*
 }
 
 // calculates pressure according to [1] and [2]
-__global__ void PressureCalc(float* pressure, float* density, float *delta_t) {
+__global__ void PressureCalc(float* pressure, 
+							 const float* __restrict__ density, 
+							 const float* __restrict__ delta_t) {
 	
 	__shared__ float pressure_coeff; 
 
@@ -682,7 +734,15 @@ __global__ void PressureCalc(float* pressure, float* density, float *delta_t) {
 }
 
 // Calculates pressure force according to [1] and [2]
-__global__ void PressureForceCalc(float3* position, float3* pressure_force, float* density, float* pressure, float* mass, uint* type, uint* cellStart, uint* cellEnd, uint* gridParticleIndex) {
+__global__ void PressureForceCalc(const float3* __restrict__ position, 
+								  float3* pressure_force, 
+								  const float* __restrict__ density, 
+								  const float* __restrict__ pressure, 
+								  const float* __restrict__ mass, 
+								  const uint* __restrict__ type, 
+								  const uint* __restrict__ cellStart, 
+								  const uint* __restrict__ cellEnd, 
+								  const uint* __restrict__ gridParticleIndex) {
 
 	uint index = getGlobalIdx_1D_1D();
 
@@ -738,7 +798,16 @@ __global__ void PressureForceCalc(float3* position, float3* pressure_force, floa
 }
 
 // This kernel gets maximum values of velocity, force and density error and calculates the sum of all density errors
-__global__ void getMaxVandF(float3* velocity,float3* pressure_force,float3* viscosity_force,float3* st_force,float* density, float* mass,float* max_force,float* max_velocity, float* sum_rho_error, float* max_rho_err) {
+__global__ void getMaxVandF(const float3* __restrict__ velocity,
+							const float3* __restrict__ pressure_force,
+							const float3* __restrict__ viscosity_force,
+							const float3* __restrict__ st_force,
+							const float* __restrict__ density, 
+							const float* __restrict__ mass,
+							float* max_force,
+							float* max_velocity, 
+							float* sum_rho_error,
+							float* max_rho_err) {
 
 	uint index = getGlobalIdx_1D_1D();
 
@@ -829,13 +898,14 @@ __global__ void deltaTCriteria(float* max_force,float* max_velocity, float* max_
 
 	return;
 }
+
 void resetValues(float* max_velocity, float* max_force, float* sum_rho_err, float* max_rho_err) {
-	thrust::device_ptr<float> d_max_v(max_velocity);
-	thrust::fill(d_max_v, d_max_v + 1, 0.f);
-	thrust::device_ptr<float> d_max_f(max_force);
-	thrust::fill(d_max_f, d_max_f + 1, 0.f);
-	thrust::device_ptr<float> d_sum_d_er(sum_rho_err);
-	thrust::fill(d_sum_d_er, d_sum_d_er + 1, 0.f);
-	thrust::device_ptr<float> d_max_d_er(max_rho_err);
-	thrust::fill(d_max_d_er, d_max_d_er + 1, 0.f);
+	thrust::device_ptr<float> ptr1(max_velocity);
+	thrust::fill(ptr1, ptr1 + 1, 0.f);
+	thrust::device_ptr<float> ptr2(max_force);
+	thrust::fill(ptr2, ptr2 + 1, 0.f);
+	thrust::device_ptr<float> ptr3(sum_rho_err);
+	thrust::fill(ptr3, ptr3 + 1, 0.f);
+	thrust::device_ptr<float> ptr4(max_rho_err);
+	thrust::fill(ptr4, ptr4 + 1, 0.f);
 }

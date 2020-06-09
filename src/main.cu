@@ -47,7 +47,7 @@ int main(void)
 	} 
 
 	std::cout << "MAIN LOOP:\n" << "Progress:" << std::endl;
-	while (iteration < 10)
+	while (iteration < 1000)
 	{
 		
 		int main_loop = mainLoop();

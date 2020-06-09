@@ -175,7 +175,7 @@ char* clearAddressArray(char* buffer, char* s1, char* s2)
 void cudaAtributes(void *dev_ptr) {
 	cudaPointerAttributes* atributes = new cudaPointerAttributes;
 	cudaPointerGetAttributes(atributes, dev_ptr);
-	printf("%d %d %d hptr = %p dptr = %p\n", static_cast<int>(atributes->memoryType), atributes->device, atributes->isManaged, atributes->devicePointer, atributes->hostPointer);
+	printf("%d dptr = %p hptr = %p\n", atributes->device, atributes->devicePointer, atributes->hostPointer);
 	return;
 }
 
