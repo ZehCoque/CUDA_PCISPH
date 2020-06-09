@@ -359,7 +359,7 @@ __global__ void boundaryNormal(float3* position, float3* normal, float3 b_initia
 }
 
 // This kernel calculates the fluid normal according to Equation between equations 2 and 3 of [4] (it does not have a number)
-__global__ void fluidNormal(float3 *position, float3 *normal,float* mass, float* density, uint* type, uint* cellStart, uint* cellEnd) {
+__global__ void fluidNormal(float3 *position, float3 *normal,float* mass, float* density, uint* type, uint* cellStart, uint* cellEnd, uint* gridParticleIndex) {
 
 	uint index = getGlobalIdx_1D_1D();
 
@@ -367,23 +367,11 @@ __global__ void fluidNormal(float3 *position, float3 *normal,float* mass, float*
 		return;
 	}
 
+	uint particleIndex = gridParticleIndex[index];
+
 	float3 current_normal = make_float3(0.f,0.f,0.f);
 
-	float3* sharedPos = shared_array;
-	float* sharedDensity = (float*)&sharedPos[d_params.block_size];
-	float* sharedMass = &sharedDensity[d_params.block_size];
-	uint* sharedType = (uint*)&sharedMass[d_params.block_size];
-
-	int sharedMemIndex = threadIdx.x ;
-
-	sharedPos[sharedMemIndex] = position[index];
-	sharedDensity[sharedMemIndex] = density[index];
-	sharedMass[sharedMemIndex] = mass[index];
-	sharedType[sharedMemIndex] = type[index];
-
-	__syncthreads();
-
-	float3 current_position = sharedPos[sharedMemIndex];
+	float3 current_position = position[index];
 	
 	int3 gridPos = calcGridPos(current_position);
 
@@ -398,20 +386,18 @@ __global__ void fluidNormal(float3 *position, float3 *normal,float* mass, float*
 				if (startIndex != 0xffffffff) {
 					uint endIndex = cellEnd[gridHash];
 
-					for (uint cell_id = startIndex; cell_id < endIndex; cell_id++) {
+					for (uint neighbor_id = startIndex; neighbor_id < endIndex; neighbor_id++) {
 
-						sharedMemIndex = cell_id - blockIdx.x * blockDim.x;
-
-						float3 neighbor_position = sharedPos[sharedMemIndex];
+						float3 neighbor_position = position[neighbor_id];
 
 						float r = distance(current_position, neighbor_position);
 						if (r <= d_params.h && r > 0) {
 
 							float3 poly6_gradient = Poly6_Gradient(&current_position, &neighbor_position, &r, &d_params.invh,&d_params.h);
 
-							float neigbor_density = sharedDensity[sharedMemIndex];
-							float neighbor_mass = sharedMass[sharedMemIndex];
-							int neighbor_type = sharedType[sharedMemIndex];
+							float neigbor_density = density[neighbor_id];
+							float neighbor_mass = mass[neighbor_id];
+							int neighbor_type = type[neighbor_id];
 
 							float tmp;
 							if (neighbor_type == 0) {
@@ -430,13 +416,15 @@ __global__ void fluidNormal(float3 *position, float3 *normal,float* mass, float*
 		}
 	}
 
+	normal[particleIndex] = current_normal;
+
 	return;
 
 }
 
 // This kernel calculates the viscosity_force (according to [5]), surface tension and adhesion (according to [4]) forces.
 // Note: The adhesion and surface tension forces are calculated in the same functions to conserve memory and lines of code
-__global__ void nonPressureForces(float3* position,float3* velocity, float3* viscosity_force, float3* st_force,float3* normal, float* mass, float* density, uint* type, uint * cellStart, uint * cellEnd) {
+__global__ void nonPressureForces(float3* position,float3* velocity, float3* viscosity_force, float3* st_force,float3* normal, float* mass, float* density, uint* type, uint * cellStart, uint * cellEnd, uint* gridParticleIndex) {
 
 	uint index = getGlobalIdx_1D_1D();
 
@@ -444,31 +432,16 @@ __global__ void nonPressureForces(float3* position,float3* velocity, float3* vis
 		return;
 	}
 
+	uint particleIndex = gridParticleIndex[index];
+
 	float3 current_viscosity_force = make_float3(0.f, 0.f, 0.f);
 	float3 current_st_force = make_float3(0.f, 0.f, 0.f);
 
-	float3* sharedPos = shared_array;
-	float* sharedDensity = (float*)&sharedPos[d_params.block_size];
-	float* sharedMass = &sharedDensity[d_params.block_size];
-	uint* sharedType = (uint*)&sharedMass[d_params.block_size];
-	float3* sharedVel = (float3*)&sharedType[d_params.block_size];
-	float3* sharedNormal = &sharedVel[d_params.block_size];
-	int sharedMemIndex = threadIdx.x ;
-
-	sharedPos[sharedMemIndex] = position[index];
-	sharedVel[sharedMemIndex] = velocity[index];
-	sharedDensity[sharedMemIndex] = density[index];
-	sharedMass[sharedMemIndex] = mass[index];
-	sharedNormal[sharedMemIndex] = normal[index];
-	sharedType[sharedMemIndex] = type[index];
-
-	__syncthreads();
-
-	float3 current_position = sharedPos[sharedMemIndex];
-	float3 current_velocity = sharedVel[sharedMemIndex];
-	float3 current_normal = sharedNormal[sharedMemIndex];
-	float current_density = sharedDensity[sharedMemIndex];
-	float current_mass = sharedMass[sharedMemIndex];
+	float3 current_position = position[index];
+	float3 current_velocity = velocity[index];
+	float3 current_normal = normal[index];
+	float current_density = density[index];
+	float current_mass = mass[index];;
 
 	int3 gridPos = calcGridPos(current_position);
 
@@ -483,20 +456,18 @@ __global__ void nonPressureForces(float3* position,float3* velocity, float3* vis
 				if (startIndex != 0xffffffff) {
 					uint endIndex = cellEnd[gridHash];
 
-					for (uint cell_id = startIndex; cell_id < endIndex; cell_id++) {
+					for (uint neighbor_id = startIndex; neighbor_id < endIndex; neighbor_id++) {
 
-						sharedMemIndex = cell_id - blockIdx.x * blockDim.x;
-
-						float3 neighbor_position = sharedPos[sharedMemIndex];
+						float3 neighbor_position = position[neighbor_id];
 
 						float r = distance(current_position, neighbor_position);
 						if (r <= d_params.h && r > 0) {
 
-							float neighbor_mass = sharedMass[sharedMemIndex];
-							float neighbor_density = sharedDensity[sharedMemIndex];
-							float3 neighbor_velocity = sharedVel[sharedMemIndex];
-							float3 neighbor_normal = sharedNormal[sharedMemIndex];
-							int neighbor_type = sharedType[sharedMemIndex];
+							float neighbor_mass = mass[neighbor_id];
+							float neighbor_density = density[neighbor_id];
+							float3 neighbor_velocity = velocity[neighbor_id];
+							float3 neighbor_normal = normal[neighbor_id];
+							int neighbor_type = type[neighbor_id];
 
 							float3 visc = ViscosityForce(&current_mass, &neighbor_mass, &current_density, &neighbor_density, &current_velocity, &neighbor_velocity, &neighbor_type, Viscosity_Laplacian(&r));
 
@@ -515,8 +486,8 @@ __global__ void nonPressureForces(float3* position,float3* velocity, float3* vis
 		}
 	}
 
-	viscosity_force[index] = current_viscosity_force;
-	st_force[index] = current_st_force;
+	viscosity_force[particleIndex] = current_viscosity_force;
+	st_force[particleIndex] = current_st_force;
 
 }
 
@@ -550,7 +521,7 @@ __global__ void positionAndVelocity(float3* position1,float3* velocity1, float3*
 }
 
 // A collision handler according to [2]
-__global__ void collisionHandler(float3* position,float3* velocity, float3* normal, uint* type, uint* cellStart, uint* cellEnd) {
+__global__ void collisionHandler(float3* position,float3* velocity, float3* normal, uint* type, uint* cellStart, uint* cellEnd, uint* gridParticleIndex) {
 
 	uint index = getGlobalIdx_1D_1D();
 
@@ -558,26 +529,14 @@ __global__ void collisionHandler(float3* position,float3* velocity, float3* norm
 		return;
 	}
 
+	uint particleIndex = gridParticleIndex[index];
+
 	float3 current_viscosity_force = make_float3(0.f, 0.f, 0.f);
 	float3 current_st_force = make_float3(0.f, 0.f, 0.f);
 
-	float3* sharedPos = shared_array;
-	uint* sharedType = (uint*)&sharedPos[d_params.block_size];
-	float3* sharedVel = (float3*)&sharedType[d_params.block_size];
-	float3* sharedNormal = &sharedVel[d_params.block_size];
-
-	int sharedMemIndex = threadIdx.x ;
-
-	sharedPos[sharedMemIndex] = position[index];
-	sharedVel[sharedMemIndex] = velocity[index];
-	sharedNormal[sharedMemIndex] = normal[index];
-	sharedType[sharedMemIndex] = type[index];
-
-	__syncthreads();
-
-	float3 current_position = sharedPos[sharedMemIndex];
-	float3 current_velocity = sharedVel[sharedMemIndex];
-	float3 current_normal = sharedNormal[sharedMemIndex];
+	float3 current_position = position[index];
+	float3 current_velocity = velocity[index];
+	float3 current_normal = normal[index];
 
 	int3 gridPos = calcGridPos(current_position);
 
@@ -596,16 +555,14 @@ __global__ void collisionHandler(float3* position,float3* velocity, float3* norm
 				if (startIndex != 0xffffffff) {
 					uint endIndex = cellEnd[gridHash];
 
-					for (uint cell_id = startIndex; cell_id < endIndex; cell_id++) {
+					for (uint neighbor_id = startIndex; neighbor_id < endIndex; neighbor_id++) {
 
-						sharedMemIndex = cell_id - blockIdx.x * blockDim.x;
-
-						float3 neighbor_position = sharedPos[sharedMemIndex];
+						float3 neighbor_position = position[neighbor_id];
 
 						float r = distance(current_position, neighbor_position);
 						if (r <= d_params.h && r > 0) {
 
-							float3 neighbor_normal = sharedNormal[sharedMemIndex];
+							float3 neighbor_normal = normal[neighbor_id];
 
 							float r = distance(current_position, neighbor_position);
 							float w_c_ib = fmaxf((d_params.boundary_diameter - r) / d_params.boundary_diameter, 0.f);
@@ -632,20 +589,20 @@ __global__ void collisionHandler(float3* position,float3* velocity, float3* norm
 	float inv_w = 1 / w_c_ib_sum;
 	float tmp = inv_norm_normal * w_c_ib_second_sum * inv_w;
 
-	position[index] += n_c_i * tmp;
+	newposition[particleIndex] += n_c_i * tmp;
 
 	//calculating new velocity
 	float dot = dot_product(current_velocity, current_normal);
 	float3 v_n;
 	v_n = dot * n_c_i;
 
-	velocity[index] = d_params.epsilon * (current_velocity - v_n);
+	newvelocity[particleIndex] = d_params.epsilon * (current_velocity - v_n);
 
 	return;
 }
 
 // A kernel to compute density according to all references
-__global__ void DensityCalc(float3* position, float* density, float* mass, uint* cellStart, uint* cellEnd) {
+__global__ void DensityCalc(float3* position, float* density, float* mass, uint* cellStart, uint* cellEnd, uint* gridParticleIndex) {
 
 	uint index = getGlobalIdx_1D_1D();
 
@@ -653,18 +610,10 @@ __global__ void DensityCalc(float3* position, float* density, float* mass, uint*
 		return;
 	}
 
+	uint particleIndex = gridParticleIndex[index];
+
 	float current_density = 0.f;
-	float3* sharedPos = shared_array;
-	float* sharedMass = (float*)&sharedPos[d_params.block_size];
-
-	int sharedMemIndex = threadIdx.x ;
-
-	sharedPos[sharedMemIndex] = position[index];
-	sharedMass[sharedMemIndex] = mass[index];
-
-	__syncthreads();
-
-	float3 current_position = sharedPos[sharedMemIndex];
+	float3 current_position = position[index];
 
 	int3 gridPos = calcGridPos(current_position);
 
@@ -679,16 +628,14 @@ __global__ void DensityCalc(float3* position, float* density, float* mass, uint*
 				if (startIndex != 0xffffffff) {
 					uint endIndex = cellEnd[gridHash];
 
-					for (uint cell_id = startIndex; cell_id < endIndex; cell_id++) {
+					for (uint neighbor_id = startIndex; neighbor_id < endIndex; neighbor_id++) {
 
-
-						sharedMemIndex = cell_id - blockIdx.x * blockDim.x;
-						float3 neighbor_position = sharedPos[sharedMemIndex];
+						float3 neighbor_position = position[neighbor_id];
 
 						float r = distance(current_position, neighbor_position);
 						if (r <= d_params.h) {
 
-							float neighbor_mass = sharedMass[sharedMemIndex];
+							float neighbor_mass = mass[neighbor_id];
 
 							current_density += neighbor_mass * Poly6_Kernel(&r);
 							
@@ -699,7 +646,7 @@ __global__ void DensityCalc(float3* position, float* density, float* mass, uint*
 		}
 	}
 	
-	density[index] = current_density;
+	density[particleIndex] = current_density;
 
 	return;
 }
@@ -735,7 +682,7 @@ __global__ void PressureCalc(float* pressure, float* density, float *delta_t) {
 }
 
 // Calculates pressure force according to [1] and [2]
-__global__ void PressureForceCalc(float3* position, float3* pressure_force, float* density, float* pressure, float* mass, uint* type, uint* cellStart, uint* cellEnd) {
+__global__ void PressureForceCalc(float3* position, float3* pressure_force, float* density, float* pressure, float* mass, uint* type, uint* cellStart, uint* cellEnd, uint* gridParticleIndex) {
 
 	uint index = getGlobalIdx_1D_1D();
 
@@ -743,28 +690,14 @@ __global__ void PressureForceCalc(float3* position, float3* pressure_force, floa
 		return;
 	}
 
+	uint particleIndex = gridParticleIndex[index];
+
 	float3 current_pressure_force = make_float3(0.f,0.f,0.f);
 
-	float3* sharedPos = shared_array;
-	uint* sharedType = (uint*)&sharedPos[d_params.block_size];
-	float* sharedDensity = (float*)&sharedType[d_params.block_size];
-	float* sharedPressure = &sharedDensity[d_params.block_size];
-	float* sharedMass = &sharedPressure[d_params.block_size];
-
-	int sharedMemIndex = threadIdx.x ;
-
-	sharedPos[sharedMemIndex] = position[index];
-	sharedType[sharedMemIndex] = type[index];
-	sharedDensity[sharedMemIndex] = density[index];
-	sharedPressure[sharedMemIndex] = pressure[index];
-	sharedMass[sharedMemIndex] = mass[index];
-
-	__syncthreads();
-
-	float3 current_position = sharedPos[sharedMemIndex];
-	float current_density = sharedDensity[sharedMemIndex];
-	float current_pressure = sharedPressure[sharedMemIndex];
-	float current_mass = sharedMass[sharedMemIndex];
+	float3 current_position = position[index];
+	float current_density = density[index];
+	float current_pressure = pressure[index];;
+	float current_mass = mass[index];
 
 	int3 gridPos = calcGridPos(current_position);
 
@@ -779,19 +712,17 @@ __global__ void PressureForceCalc(float3* position, float3* pressure_force, floa
 				if (startIndex != 0xffffffff) {
 					uint endIndex = cellEnd[gridHash];
 
-					for (uint cell_id = startIndex; cell_id < endIndex; cell_id++) {
+					for (uint neighbor_id = startIndex; neighbor_id < endIndex; neighbor_id++) {
 
-						sharedMemIndex = cell_id - blockIdx.x * blockDim.x;
-
-						float3 neighbor_position = sharedPos[sharedMemIndex];
+						float3 neighbor_position = position[neighbor_id];
 
 						float r = distance(current_position, neighbor_position);
 						if (r <= d_params.h && r > 0) {
 
-							float neighbor_pressure = sharedPressure[sharedMemIndex];
-							float neighbor_mass = sharedMass[sharedMemIndex];
-							float neighbor_density = sharedDensity[sharedMemIndex];
-							int neighbor_type = sharedType[sharedMemIndex];
+							float neighbor_pressure = pressure[neighbor_id];
+							float neighbor_mass = mass[neighbor_id];
+							float neighbor_density = density[neighbor_id];
+							int neighbor_type = type[neighbor_id];
 
 							current_pressure_force = PressureForce(&current_pressure,&neighbor_pressure,&current_mass,&neighbor_mass,&current_density,&neighbor_density,&neighbor_type, Spiky_Gradient(&current_position, &neighbor_position, &r, &d_params.invh, &d_params.h));
 						}
@@ -801,7 +732,7 @@ __global__ void PressureForceCalc(float3* position, float3* pressure_force, floa
 		}
 	}
 
-	pressure_force[index] = current_pressure_force;
+	pressure_force[particleIndex] = current_pressure_force;
 
 	return;
 }
